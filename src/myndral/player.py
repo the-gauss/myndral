@@ -21,7 +21,6 @@ class ThirdPersonController(Entity):
         super().__init__(
             model="cube",
             color=color.azure,
-            collider="box",
             scale=(0.6, 1.2, 0.6),
             position=start_position + Vec3(0, 0.6, 0),
         )
@@ -49,7 +48,8 @@ class ThirdPersonController(Entity):
             return
 
         direction = input_dir.normalized()
-        desired = direction * self._speed * time.dt
+        dt = min(time.dt, 0.05)
+        desired = direction * self._speed * dt
 
         self.rotation_y = math.degrees(math.atan2(direction.x, direction.z))
 

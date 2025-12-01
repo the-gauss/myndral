@@ -1,3 +1,4 @@
+
 """Opening scene application setup."""
 
 from __future__ import annotations
@@ -44,7 +45,7 @@ class OpeningGame:
         
         self.player = ThirdPersonController(
             maze=WorldAdapter(world), # We'll define this below
-            start_position=Vec3(0, 0, 0)
+            start_position=Vec3(-5, 0, 0)
         )
 
         self._sun = DirectionalLight(shadows=True)
@@ -81,16 +82,16 @@ class WorldAdapter:
 
     def _check_collision(self, pos: Vec3, entity: Entity, radius: float) -> bool:
         # A simple circle/box check on XZ plane
-        # Entity scale is (2,2,2) for obstacles
+        # Use world_scale to be safe
         
-        half_w = entity.scale_x / 2
-        half_d = entity.scale_z / 2
+        half_w = entity.world_scale_x / 2
+        half_d = entity.world_scale_z / 2
         
         # Expand bounds by radius
-        min_x = entity.x - half_w - radius
-        max_x = entity.x + half_w + radius
-        min_z = entity.z - half_d - radius
-        max_z = entity.z + half_d + radius
+        min_x = entity.world_x - half_w - radius
+        max_x = entity.world_x + half_w + radius
+        min_z = entity.world_z - half_d - radius
+        max_z = entity.world_z + half_d + radius
         
         return (min_x <= pos.x <= max_x) and (min_z <= pos.z <= max_z)
 

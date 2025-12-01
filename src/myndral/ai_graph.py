@@ -43,7 +43,7 @@ class NarrativeGraph:
         event = prompt.split("Player event:")[-1].strip()
         if not event:
             return "The world hums softly, awaiting your first move."
-        return f"{event.capitalize()} inspires a gentle whisper through the ruins.""
+        return f"{event.capitalize()} inspires a gentle whisper through the ruins."
 
     def _narrate(self, state: NarrativeState) -> NarrativeState:
         prompt = self._prompt.format(player_event=state.get("player_event", ""))

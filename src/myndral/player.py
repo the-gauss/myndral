@@ -27,12 +27,12 @@ class ThirdPersonController(Entity):
         )
         self._maze = maze
         self._speed = move_speed
-        self._camera_offset = Vec3(45, 50, -26)
+        self._camera_offset = Vec3(45, 70, -30)
 
         camera.parent = None
         camera.world_position = self.world_position + self._camera_offset
         camera.look_at(self.world_position + Vec3(0, 1, 0))
-        camera.fov = 65
+        camera.fov = 30
         window.exit_button = "control+q"
 
     def update(self) -> None:  # type: ignore[override]

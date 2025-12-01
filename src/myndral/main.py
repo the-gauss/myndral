@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .game import MazeGame
+from .opening import OpeningGame
 
 MAZE_LAYOUT = [
     "###################",
@@ -26,4 +26,4 @@ MAZE_LAYOUT = [
 def main() -> None:
     """Launch the Ursina application."""
 
-    MazeGame(layout=MAZE_LAYOUT).run()
+    OpeningGame().run()

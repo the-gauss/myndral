@@ -2,8 +2,4 @@
 [tool.uv.workspace]
 members = [
     "apps/api",
-    "agents/*",
 ]
-
-[tool.uv]
-python = "3.12"

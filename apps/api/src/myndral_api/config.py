@@ -31,7 +31,12 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
 
     # CORS — comma-separated origins
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = (
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173,"
+        "http://localhost:4173,"
+        "http://127.0.0.1:4173"
+    )
 
     @property
     def cors_origins_list(self) -> list[str]:

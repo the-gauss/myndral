@@ -22,7 +22,8 @@ DECLARE
   -- ── System user (owns all seeded content) ───────────────────────────────
   v_system            UUID;
 
-  -- ── Test listener accounts ───────────────────────────────────────────────
+  -- ── Test accounts ────────────────────────────────────────────────────────
+  v_user_admin        UUID;
   v_user_alice        UUID;
   v_user_bob          UUID;
 
@@ -105,6 +106,31 @@ BEGIN
   ON CONFLICT (username) DO NOTHING;
   SELECT id INTO v_system FROM users WHERE username = 'system';
 
+  -- Full-access admin login for local development
+  -- username: admin_test
+  -- password: AdminPass123!
+  INSERT INTO users (username, email, display_name, hashed_password, role,
+                     email_verified, is_active, country_code)
+  VALUES (
+    'admin_test',
+    'admin@dev.myndral.ai',
+    'Admin Test',
+    crypt('AdminPass123!', gen_salt('bf', 12)),
+    'admin',
+    true,
+    true,
+    'US'
+  )
+  ON CONFLICT (username) DO UPDATE
+    SET email           = EXCLUDED.email,
+        display_name    = EXCLUDED.display_name,
+        hashed_password = EXCLUDED.hashed_password,
+        role            = EXCLUDED.role,
+        email_verified  = EXCLUDED.email_verified,
+        is_active       = EXCLUDED.is_active,
+        country_code    = EXCLUDED.country_code;
+  SELECT id INTO v_user_admin FROM users WHERE username = 'admin_test';
+
   -- Test listener: Alice
   INSERT INTO users (username, email, display_name, hashed_password, role,
                      email_verified, is_active, country_code)
@@ -135,6 +161,13 @@ BEGIN
                              current_period_start, current_period_end)
   SELECT v_user_bob, id, 'active', now(), 'infinity'
   FROM   subscription_plans WHERE slug = 'free'
+  ON CONFLICT DO NOTHING;
+
+  -- Full-access account gets premium annual subscription
+  INSERT INTO subscriptions (user_id, plan_id, status,
+                             current_period_start, current_period_end)
+  SELECT v_user_admin, id, 'active', now(), now() + interval '365 days'
+  FROM   subscription_plans WHERE slug = 'premium_annual'
   ON CONFLICT DO NOTHING;
 
   -- ══════════════════════════════════════════════════════════════════════════

@@ -57,6 +57,7 @@ export interface Playlist {
 }
 
 export type SubscriptionPlan = 'free' | 'premium_monthly' | 'premium_annual'
+export type UserRole = 'listener' | 'content_editor' | 'content_reviewer' | 'admin'
 
 export interface User {
   id: string
@@ -64,6 +65,7 @@ export interface User {
   email: string
   displayName: string
   avatarUrl?: string
+  role: UserRole
   subscriptionPlan: SubscriptionPlan
   createdAt: string
 }

@@ -69,3 +69,12 @@ npm run dev
 ```
 
 The web app will be available at `http://localhost:5173` and the API at `http://localhost:8000`.
+
+## Dev login account
+
+After applying schema + seeds, you can log in with:
+
+- Username: `admin_test`
+- Password: `AdminPass123!`
+
+This account is seeded by `db/seeds/03_dev_catalog.sql` with `admin` role and a premium plan.

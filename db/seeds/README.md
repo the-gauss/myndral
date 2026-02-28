@@ -39,8 +39,10 @@ All seed files are **idempotent** — safe to re-run. `01_genres.sql` and
 | Username | Role | Notes |
 |---|---|---|
 | `system` | admin | Content attribution for seeded catalog; no real password |
+| `admin_test` | admin | Full-access login account; password: `AdminPass123!` |
 | `alice_dev` | listener | Active Premium subscription |
 | `bob_dev` | listener | Free subscription |
 
-Passwords are placeholder bcrypt hashes. Use the API's `/v1/auth/register`
-endpoint to create real accounts in local development.
+`admin_test` is seeded with a real bcrypt hash so you can log in immediately.
+Other sample users keep placeholder hashes. Use the API's `/v1/auth/register`
+endpoint to create additional real accounts in local development.

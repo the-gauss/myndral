@@ -4,7 +4,7 @@ import type { Album, Artist, Paginated, Playlist, SearchResults, Track } from '.
 // ── Artists ───────────────────────────────────────────────────────────────────
 
 export const getArtists = (limit = 20, offset = 0) =>
-  api.get<Paginated<Artist>>('/v1/artists', { params: { limit, offset } }).then((r) => r.data)
+  api.get<Paginated<Artist>>('/v1/artists/', { params: { limit, offset } }).then((r) => r.data)
 
 export const getArtist = (id: string) =>
   api.get<Artist>(`/v1/artists/${id}`).then((r) => r.data)
@@ -18,7 +18,7 @@ export const getArtistTopTracks = (artistId: string, limit = 10) =>
 // ── Albums ────────────────────────────────────────────────────────────────────
 
 export const getAlbums = (limit = 20, offset = 0) =>
-  api.get<Paginated<Album>>('/v1/albums', { params: { limit, offset } }).then((r) => r.data)
+  api.get<Paginated<Album>>('/v1/albums/', { params: { limit, offset } }).then((r) => r.data)
 
 export const getAlbum = (id: string) =>
   api.get<Album>(`/v1/albums/${id}`).then((r) => r.data)
@@ -29,7 +29,7 @@ export const getAlbumTracks = (albumId: string) =>
 // ── Tracks ────────────────────────────────────────────────────────────────────
 
 export const getTracks = (limit = 20, offset = 0) =>
-  api.get<Paginated<Track>>('/v1/tracks', { params: { limit, offset } }).then((r) => r.data)
+  api.get<Paginated<Track>>('/v1/tracks/', { params: { limit, offset } }).then((r) => r.data)
 
 export const getTrack = (id: string) =>
   api.get<Track>(`/v1/tracks/${id}`).then((r) => r.data)
@@ -42,10 +42,13 @@ export const getFeaturedTracks = (limit = 10) =>
 export const getPlaylist = (id: string) =>
   api.get<Playlist>(`/v1/playlists/${id}`).then((r) => r.data)
 
+export const getPlaylists = (limit = 20, offset = 0) =>
+  api.get<Paginated<Playlist>>('/v1/playlists/', { params: { limit, offset } }).then((r) => r.data)
+
 export const getUserPlaylists = (limit = 50) =>
   api.get<Paginated<Playlist>>('/v1/users/me/playlists', { params: { limit } }).then((r) => r.data)
 
 // ── Search ────────────────────────────────────────────────────────────────────
 
 export const search = (query: string, limit = 10) =>
-  api.get<SearchResults>('/v1/search', { params: { q: query, limit } }).then((r) => r.data)
+  api.get<SearchResults>('/v1/search/', { params: { q: query, limit } }).then((r) => r.data)

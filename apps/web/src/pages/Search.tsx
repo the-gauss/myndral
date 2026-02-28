@@ -1,5 +1,6 @@
 import { Search as SearchIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import AlbumCard from '../components/cards/AlbumCard'
 import ArtistCard from '../components/cards/ArtistCard'
 import TrackRow from '../components/cards/TrackRow'
@@ -24,7 +25,8 @@ export default function Search() {
   const hasResults = data && (
     data.tracks.items.length > 0 ||
     data.albums.items.length > 0 ||
-    data.artists.items.length > 0
+    data.artists.items.length > 0 ||
+    data.playlists.items.length > 0
   )
 
   return (
@@ -92,6 +94,23 @@ export default function Search() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                   {data.albums.items.map((album) => (
                     <AlbumCard key={album.id} album={album} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {data.playlists.items.length > 0 && (
+              <section>
+                <SectionHeader title="Playlists" />
+                <div className="space-y-1">
+                  {data.playlists.items.map((playlist) => (
+                    <Link
+                      key={playlist.id}
+                      to={`/playlist/${playlist.id}`}
+                      className="block px-3 py-2 rounded-md bg-surface hover:bg-border/40 text-sm text-foreground transition-colors"
+                    >
+                      {playlist.name}
+                    </Link>
                   ))}
                 </div>
               </section>

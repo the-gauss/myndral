@@ -2,22 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light theme (default) ───────────────────────────────────────────────── */
+:root {
+  --background:       250 250 249;
+  --foreground:       17 17 17;
+  --surface:          244 244 242;
+  --border:           226 226 222;
+  --muted:            108 108 106;
+  --muted-foreground: 140 140 135;
+  --accent:           55 102 78;
+  --accent-foreground:255 255 255;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  --background:       12 12 12;
+  --foreground:       240 240 238;
+  --surface:          22 22 22;
+  --border:           38 38 36;
+  --muted:            70 70 68;
+  --muted-foreground: 158 158 152;
+  --accent:           78 148 108;
+  --accent-foreground:12 12 12;
+}
+
+/* ── Paper theme (Premium) ───────────────────────────────────────────────── */
+:root[data-theme="paper"] {
+  --background:       243 234 211;
+  --foreground:       30 12 12;
+  --surface:          235 224 198;
+  --border:           210 194 162;
+  --muted:            158 140 108;
+  --muted-foreground: 128 108 78;
+  --accent:           114 47 55;
+  --accent-foreground:243 234 211;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
 @layer base {
   html, body, #root {
-    @apply h-full bg-background text-white;
+    @apply h-full bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* Custom scrollbar — Spotify-style */
+  * {
+    @apply border-border;
+  }
+
+  /* Thin scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-highlight rounded-full;
+    @apply bg-border rounded-full;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted;
+    @apply bg-muted-fg;
+  }
+
+  /* Range input styling */
+  input[type="range"] {
+    @apply accent-accent cursor-pointer;
   }
 }

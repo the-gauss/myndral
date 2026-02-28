@@ -15,10 +15,10 @@ class Settings(BaseSettings):
     app_name: str = "MyndralAI API"
     environment: str = "development"
     debug: bool = False
-    secret_key: str = "change-me"
+    secret_key: str
 
     # Database
-    database_url: str = "postgresql+asyncpg://myndral:myndral@localhost:5432/myndral"
+    database_url: str
 
     # Redis
     redis_url: str = "redis://localhost:6379"

@@ -1,26 +1,71 @@
-# Myndral
+# MyndralAI
 
-Local-first Ursina maze demo with LangChain/LangGraph hooks available for later AI logic. Targets Python 3.12 and is managed with [`uv`](https://docs.astral.sh/uv/).
+AI-generated music streaming platform. Every artist, album, track, and lyric is created by AI — no real artists, no copyright concerns.
 
-## Features
-- `uv`-managed isolated environment pinned to Python 3.12.
-- Third-person Ursina maze with mouse look + WASD movement.
-- Medieval-inspired wall/floor textures stored locally in `src/myndral/assets/textures`.
-- LangChain + LangGraph v1 dependencies wired in with a stub graph class for future AI features.
+## Stack
 
-## Getting Started
-```bash
-uv sync  # creates virtualenv and installs dependencies
-uv run myndral  # launches the Ursina sample scene
+| Layer | Technology |
+|---|---|
+| Backend API | FastAPI (Python 3.12) |
+| Frontend | React 18 + Vite + TypeScript |
+| AI / Agents | LangGraph |
+| Database | PostgreSQL 16 |
+| Cache / Queue | Redis 7 |
+| Package manager (Python) | uv |
+| Package manager (JS) | npm |
+
+## Monorepo layout
+
+```
+myndral/
+├── agents/          # LangGraph AI agents (artist, album, track, lyric generation)
+├── apps/
+│   ├── api/         # FastAPI backend
+│   └── web/         # React + Vite frontend
+├── db/
+│   ├── migrations/  # Alembic migrations
+│   └── seeds/       # Seed data scripts
+├── docs/            # Architecture docs
+├── infra/           # Docker Compose, Nginx config, etc.
+├── services/        # Future microservices (streaming, search, recommendations…)
+└── transform/       # ETL / data pipelines
 ```
 
-## Controls
-- Mouse move: orbit camera behind/above the player.
-- W / A / S / D: move forward, strafe, back.
-- Esc: toggle mouse capture to regain your cursor.
-- Ctrl+Q: quit the demo window.
+## Quick start
 
-## Development Notes
-- Keep development offline-friendly; all assets live in this repo under `src/myndral/assets`.
-- Extend `src/myndral/ai_graph.py` with LangChain/LangGraph components when adding AI-driven narration or gameplay.
-- Game loop entrypoint lives in `src/myndral/main.py`; scene setup is in `src/myndral/game.py`; movement logic is in `src/myndral/player.py`.
+### Prerequisites
+
+- Python ≥ 3.12 with [uv](https://docs.astral.sh/uv/)
+- Node ≥ 20 with npm
+- Docker + Docker Compose
+
+### 1. Clone & configure environment
+
+```bash
+cp .env.example .env
+# edit .env with your values
+```
+
+### 2. Start infrastructure
+
+```bash
+docker compose -f infra/docker-compose.yml up -d
+```
+
+### 3. Run the API
+
+```bash
+cd apps/api
+uv sync
+uv run uvicorn myndral_api.main:app --reload --port 8000
+```
+
+### 4. Run the web app
+
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+The web app will be available at `http://localhost:5173` and the API at `http://localhost:8000`.

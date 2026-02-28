@@ -1,19 +1,64 @@
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
 .venv/
-.uv/
-.python-version
-.env
-.env.*
-.DS_Store
-build/
-dist/
-.eggs/
+venv/
+env/
 *.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
 .coverage
 htmlcov/
-.mypy_cache/
-.pytest_cache/
-.idea/
+
+# ── uv ────────────────────────────────────────────────────────────────────────
+.uv/
+uv.lock
+
+# ── Node / JS ─────────────────────────────────────────────────────────────────
+node_modules/
+dist/
+.cache/
+.parcel-cache/
+*.tsbuildinfo
+
+# ── Env ───────────────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
 .vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.tmp
+*.bak
+.claude
+

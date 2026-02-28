@@ -70,6 +70,17 @@ export interface TrackAudioFile {
   checksumSha256?: string | null
 }
 
+export interface AudioInspection {
+  storageUrl: string
+  format?: 'mp3' | 'aac' | 'ogg' | 'flac' | 'opus' | null
+  durationMs?: number | null
+  bitrateKbps?: number | null
+  sampleRateHz?: number | null
+  channels?: number | null
+  fileSizeBytes?: number | null
+  checksumSha256?: string | null
+}
+
 export interface TrackLyrics {
   content: string
   language: string

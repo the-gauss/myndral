@@ -1,5 +1,6 @@
 import api from './api'
 import type {
+  AudioInspection,
   AlbumItem,
   ArtistItem,
   Genre,
@@ -19,6 +20,9 @@ export const getInternalMe = () =>
 
 export const listGenres = () =>
   api.get<Genre[]>('/v1/internal/genres').then((r) => r.data)
+
+export const inspectAudio = (payload: { storageUrl: string }) =>
+  api.post<AudioInspection>('/v1/internal/audio/inspect', payload).then((r) => r.data)
 
 export const listArtists = (params?: { status?: ContentStatus; q?: string; limit?: number; offset?: number }) =>
   api.get<Paginated<ArtistItem>>('/v1/internal/artists', { params }).then((r) => r.data)
@@ -105,7 +109,9 @@ export const createTrack = (payload: {
     bitrateKbps?: number
     sampleRateHz?: number
     channels?: number
+    fileSizeBytes?: number
     durationMs?: number
+    checksumSha256?: string
   }>
 }) => api.post<TrackItem>('/v1/internal/tracks', payload).then((r) => r.data)
 
@@ -119,4 +125,16 @@ export const updateTrack = (trackId: string, payload: Partial<{
   explicit: boolean
   status: ContentStatus
   genreIds: string[]
+  audioFiles: Array<{
+    quality: 'low_128' | 'standard_256' | 'high_320' | 'lossless'
+    format: 'mp3' | 'aac' | 'ogg' | 'flac' | 'opus'
+    storageUrl: string
+    bitrateKbps?: number
+    sampleRateHz?: number
+    channels?: number
+    fileSizeBytes?: number
+    durationMs?: number
+    checksumSha256?: string
+  }>
+  replaceAudioFiles: boolean
 }>) => api.patch<TrackItem>(`/v1/internal/tracks/${trackId}`, payload).then((r) => r.data)

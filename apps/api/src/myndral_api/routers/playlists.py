@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from myndral_api.auth_utils import get_current_user
 from myndral_api.db.session import get_db
+from myndral_api.media_utils import normalize_audio_url
 
 router = APIRouter()
 
@@ -20,6 +21,7 @@ def _iso(value: Any) -> str | None:
 
 
 def _serialize_track(row: Any) -> dict[str, Any]:
+    track_id = row["id"]
     artist = {
         "id": row["artist_id"],
         "name": row["artist_name"],
@@ -51,7 +53,7 @@ def _serialize_track(row: Any) -> dict[str, Any]:
         "trackCount": int(row["album_track_count"] or 0),
     }
     return {
-        "id": row["id"],
+        "id": track_id,
         "title": row["title"],
         "albumId": row["album_id"],
         "album": album,
@@ -59,7 +61,7 @@ def _serialize_track(row: Any) -> dict[str, Any]:
         "artist": artist,
         "trackNumber": int(row["track_number"] or 1),
         "durationMs": int(row["duration_ms"] or 0),
-        "audioUrl": row["audio_url"],
+        "audioUrl": normalize_audio_url(track_id, row["audio_url"]),
         "playCount": int(row["play_count"] or 0),
         "explicit": bool(row["explicit"]),
     }

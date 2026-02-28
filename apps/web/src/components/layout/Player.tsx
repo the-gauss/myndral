@@ -37,15 +37,19 @@ export default function Player() {
   } = usePlayer()
 
   const audioRef = useRef<HTMLAudioElement>(null)
+  const apiBaseUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
   // Sync playback state with audio element
   useEffect(() => {
     const audio = audioRef.current
     if (!audio || !currentTrack?.audioUrl) return
-    audio.src = currentTrack.audioUrl
+    const resolvedUrl = currentTrack.audioUrl.startsWith('/v1/') && apiBaseUrl
+      ? `${apiBaseUrl}${currentTrack.audioUrl}`
+      : currentTrack.audioUrl
+    audio.src = resolvedUrl
     audio.load()
     if (isPlaying) audio.play().catch(() => {})
-  }, [currentTrack?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [apiBaseUrl, currentTrack?.id, currentTrack?.audioUrl, isPlaying])
 
   useEffect(() => {
     const audio = audioRef.current

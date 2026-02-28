@@ -23,6 +23,8 @@ dependencies = [
     "python-multipart>=0.0.20",
     # HTTP client (for agent callbacks, etc.)
     "httpx>=0.28.0",
+    # Audio metadata parsing for internal tooling + streaming paths
+    "mutagen>=1.47.0",
 ]
 
 [project.optional-dependencies]

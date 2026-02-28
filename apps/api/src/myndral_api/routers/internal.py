@@ -16,6 +16,11 @@ from myndral_api.auth_utils import (
     verify_password,
 )
 from myndral_api.db.session import get_db
+from myndral_api.media_utils import (
+    infer_local_audio_metadata,
+    is_local_storage_url,
+    is_remote_storage_url,
+)
 
 router = APIRouter()
 
@@ -27,8 +32,6 @@ AudioFormat = Literal["mp3", "aac", "ogg", "flac", "opus"]
 InternalRole = Literal["content_editor", "content_reviewer", "admin"]
 
 INTERNAL_ROLES: set[str] = {"content_editor", "content_reviewer", "admin"}
-LOCAL_AUDIO_PREFIXES = ("data/", "/data/", "file://")
-REMOTE_AUDIO_PREFIXES = ("http://", "https://", "s3://", "gs://")
 
 
 class CamelModel(BaseModel):
@@ -106,6 +109,10 @@ class TrackAudioInput(CamelModel):
     checksum_sha256: str | None = Field(default=None, alias="checksumSha256")
 
 
+class AudioInspectRequest(CamelModel):
+    storage_url: str = Field(alias="storageUrl", min_length=1)
+
+
 class LyricsInput(CamelModel):
     content: str = Field(min_length=1)
     language: str = Field(default="en", min_length=2, max_length=2)
@@ -162,7 +169,7 @@ def _is_internal_role(role: str) -> bool:
 
 
 def _validate_audio_url(value: str) -> None:
-    if value.startswith(LOCAL_AUDIO_PREFIXES) or value.startswith(REMOTE_AUDIO_PREFIXES):
+    if is_local_storage_url(value) or is_remote_storage_url(value):
         return
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -171,6 +178,115 @@ def _validate_audio_url(value: str) -> None:
             "('data/...', '/data/...', 'file://...') or remote URL."
         ),
     )
+
+
+def _validate_media_url(value: str, field_name: str) -> None:
+    if is_local_storage_url(value) or is_remote_storage_url(value):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail=(
+            f"{field_name} must be a local data path "
+            "('data/...', '/data/...', 'file://...') or remote URL."
+        ),
+    )
+
+
+def _normalize_optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def _enrich_audio_files(audio_files: list[TrackAudioInput]) -> int | None:
+    inferred_duration_ms: int | None = None
+    for audio in audio_files:
+        _validate_audio_url(audio.storage_url)
+        inferred = infer_local_audio_metadata(audio.storage_url)
+        if inferred is None:
+            continue
+
+        inferred_format = inferred.get("format")
+        if inferred_format and audio.format == "mp3" and inferred_format in {"aac", "ogg", "flac", "opus"}:
+            # Most forms default to mp3; prefer inferred format for local assets.
+            audio.format = inferred_format
+
+        if audio.duration_ms is None and inferred.get("duration_ms") is not None:
+            audio.duration_ms = int(inferred["duration_ms"])
+        if audio.bitrate_kbps is None and inferred.get("bitrate_kbps") is not None:
+            audio.bitrate_kbps = int(inferred["bitrate_kbps"])
+        if audio.sample_rate_hz is None and inferred.get("sample_rate_hz") is not None:
+            audio.sample_rate_hz = int(inferred["sample_rate_hz"])
+        if inferred.get("channels") is not None:
+            audio.channels = int(inferred["channels"])
+        if audio.file_size_bytes is None and inferred.get("file_size_bytes") is not None:
+            audio.file_size_bytes = int(inferred["file_size_bytes"])
+        if audio.checksum_sha256 is None and inferred.get("checksum_sha256") is not None:
+            audio.checksum_sha256 = str(inferred["checksum_sha256"])
+        if inferred_duration_ms is None and audio.duration_ms is not None:
+            inferred_duration_ms = int(audio.duration_ms)
+    return inferred_duration_ms
+
+
+def _ensure_published_artist_requirements(
+    status_value: ContentStatus,
+    *,
+    image_url: str | None,
+    bio: str | None,
+) -> None:
+    if status_value != "published":
+        return
+    if not image_url:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Published artists require imageUrl (portrait).",
+        )
+    if not bio:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Published artists require a non-empty bio.",
+        )
+
+
+def _ensure_published_album_requirements(
+    status_value: ContentStatus,
+    *,
+    cover_url: str | None,
+    release_date: date | None,
+) -> None:
+    if status_value != "published":
+        return
+    if not cover_url:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Published albums require coverUrl (album art).",
+        )
+    if release_date is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Published albums require releaseDate.",
+        )
+
+
+def _ensure_published_track_requirements(
+    status_value: ContentStatus,
+    *,
+    duration_ms: int,
+    has_audio_files: bool,
+) -> None:
+    if status_value != "published":
+        return
+    if not has_audio_files:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Published tracks require at least one audio file.",
+        )
+    if duration_ms <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Published tracks require durationMs > 0.",
+        )
 
 
 def _integrity_exception(exc: IntegrityError, default_detail: str) -> HTTPException:
@@ -630,6 +746,33 @@ async def list_genres(
     return [dict(row) for row in result.mappings().all()]
 
 
+@router.post("/audio/inspect", summary="Inspect a local audio asset and infer metadata")
+async def inspect_audio(
+    payload: AudioInspectRequest,
+    _: dict = Depends(_require_internal_user),
+) -> dict[str, Any]:
+    storage_url = payload.storage_url.strip()
+    _validate_audio_url(storage_url)
+
+    inferred = infer_local_audio_metadata(storage_url)
+    if inferred is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Metadata inference is only available for readable local data/* files.",
+        )
+
+    return {
+        "storageUrl": storage_url,
+        "format": inferred.get("format"),
+        "durationMs": inferred.get("duration_ms"),
+        "bitrateKbps": inferred.get("bitrate_kbps"),
+        "sampleRateHz": inferred.get("sample_rate_hz"),
+        "channels": inferred.get("channels"),
+        "fileSizeBytes": inferred.get("file_size_bytes"),
+        "checksumSha256": inferred.get("checksum_sha256"),
+    }
+
+
 @router.get("/artists", summary="List artists for internal management")
 async def list_artists(
     status_filter: ContentStatus | None = Query(default=None, alias="status"),
@@ -709,6 +852,16 @@ async def create_artist(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     artist_slug = await _ensure_artist_slug(db, payload.slug or payload.name)
+    image_url = _normalize_optional_text(payload.image_url)
+    header_image_url = _normalize_optional_text(payload.header_image_url)
+    bio = _normalize_optional_text(payload.bio)
+    persona_prompt = _normalize_optional_text(payload.persona_prompt)
+    if image_url:
+        _validate_media_url(image_url, "imageUrl")
+    if header_image_url:
+        _validate_media_url(header_image_url, "headerImageUrl")
+    _ensure_published_artist_requirements(payload.status, image_url=image_url, bio=bio)
+
     published_at = datetime.now(UTC) if payload.status == "published" else None
     try:
         result = await db.execute(
@@ -728,11 +881,11 @@ RETURNING id::text
             {
                 "name": payload.name.strip(),
                 "slug": artist_slug,
-                "bio": payload.bio,
-                "image_url": payload.image_url,
-                "header_image_url": payload.header_image_url,
+                "bio": bio,
+                "image_url": image_url,
+                "header_image_url": header_image_url,
                 "status": payload.status,
-                "persona_prompt": payload.persona_prompt,
+                "persona_prompt": persona_prompt,
                 "style_tags": payload.style_tags,
                 "created_by": current_user["id"],
                 "published_at": published_at,
@@ -771,13 +924,19 @@ async def update_artist(
         else:
             update_values["slug"] = await _ensure_artist_slug(db, values["slug"])
     if "bio" in values:
-        update_values["bio"] = values["bio"]
+        update_values["bio"] = _normalize_optional_text(values["bio"])
     if "image_url" in values:
-        update_values["image_url"] = values["image_url"]
+        normalized = _normalize_optional_text(values["image_url"])
+        if normalized:
+            _validate_media_url(normalized, "imageUrl")
+        update_values["image_url"] = normalized
     if "header_image_url" in values:
-        update_values["header_image_url"] = values["header_image_url"]
+        normalized = _normalize_optional_text(values["header_image_url"])
+        if normalized:
+            _validate_media_url(normalized, "headerImageUrl")
+        update_values["header_image_url"] = normalized
     if "persona_prompt" in values:
-        update_values["persona_prompt"] = values["persona_prompt"]
+        update_values["persona_prompt"] = _normalize_optional_text(values["persona_prompt"])
     if "style_tags" in values:
         update_values["style_tags"] = values["style_tags"] or []
     if "status" in values:
@@ -786,6 +945,15 @@ async def update_artist(
             update_values["published_at"] = datetime.now(UTC)
         if values["status"] == "archived":
             update_values["archived_at"] = datetime.now(UTC)
+
+    resulting_status = update_values.get("status", existing["status"])
+    resulting_image_url = update_values.get("image_url", existing.get("imageUrl"))
+    resulting_bio = update_values.get("bio", existing.get("bio"))
+    _ensure_published_artist_requirements(
+        resulting_status,
+        image_url=_normalize_optional_text(resulting_image_url),
+        bio=_normalize_optional_text(resulting_bio),
+    )
 
     if update_values:
         assignments = ", ".join(f"{column} = :{column}" for column in update_values)
@@ -894,6 +1062,16 @@ async def create_album(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     album_slug = await _ensure_album_slug(db, payload.artist_id, payload.slug or payload.title)
+    cover_url = _normalize_optional_text(payload.cover_url)
+    description = _normalize_optional_text(payload.description)
+    if cover_url:
+        _validate_media_url(cover_url, "coverUrl")
+    _ensure_published_album_requirements(
+        payload.status,
+        cover_url=cover_url,
+        release_date=payload.release_date,
+    )
+
     published_at = datetime.now(UTC) if payload.status == "published" else None
     try:
         result = await db.execute(
@@ -914,8 +1092,8 @@ RETURNING id::text
                 "title": payload.title.strip(),
                 "slug": album_slug,
                 "artist_id": payload.artist_id,
-                "cover_url": payload.cover_url,
-                "description": payload.description,
+                "cover_url": cover_url,
+                "description": description,
                 "release_date": payload.release_date,
                 "album_type": payload.album_type,
                 "status": payload.status,
@@ -962,9 +1140,12 @@ async def update_album(
     if "artist_id" in values:
         update_values["artist_id"] = values["artist_id"]
     if "cover_url" in values:
-        update_values["cover_url"] = values["cover_url"]
+        normalized = _normalize_optional_text(values["cover_url"])
+        if normalized:
+            _validate_media_url(normalized, "coverUrl")
+        update_values["cover_url"] = normalized
     if "description" in values:
-        update_values["description"] = values["description"]
+        update_values["description"] = _normalize_optional_text(values["description"])
     if "release_date" in values:
         update_values["release_date"] = values["release_date"]
     if "album_type" in values:
@@ -975,6 +1156,17 @@ async def update_album(
             update_values["published_at"] = datetime.now(UTC)
         if values["status"] == "archived":
             update_values["archived_at"] = datetime.now(UTC)
+
+    resulting_status = update_values.get("status", existing["status"])
+    resulting_cover_url = update_values.get("cover_url", existing.get("coverUrl"))
+    resulting_release_date = update_values.get("release_date", existing.get("releaseDate"))
+    if isinstance(resulting_release_date, str):
+        resulting_release_date = date.fromisoformat(resulting_release_date)
+    _ensure_published_album_requirements(
+        resulting_status,
+        cover_url=_normalize_optional_text(resulting_cover_url),
+        release_date=resulting_release_date,
+    )
 
     if update_values:
         assignments = ", ".join(f"{column} = :{column}" for column in update_values)
@@ -1129,6 +1321,14 @@ async def create_track(
         raise HTTPException(status_code=404, detail="Album not found.")
 
     primary_artist_id = payload.primary_artist_id or album["artist_id"]
+    audio_files = list(payload.audio_files)
+    inferred_duration_ms = _enrich_audio_files(audio_files)
+    duration_ms = payload.duration_ms if payload.duration_ms > 0 else (inferred_duration_ms or 0)
+    _ensure_published_track_requirements(
+        payload.status,
+        duration_ms=duration_ms,
+        has_audio_files=bool(audio_files),
+    )
     published_at = datetime.now(UTC) if payload.status == "published" else None
     try:
         result = await db.execute(
@@ -1151,7 +1351,7 @@ RETURNING id::text
                 "primary_artist_id": primary_artist_id,
                 "track_number": payload.track_number,
                 "disc_number": payload.disc_number,
-                "duration_ms": payload.duration_ms,
+                "duration_ms": duration_ms,
                 "explicit": payload.explicit,
                 "status": payload.status,
                 "created_by": current_user["id"],
@@ -1162,7 +1362,7 @@ RETURNING id::text
         await _replace_track_artists(db, track_id, primary_artist_id, payload.artist_links)
         await _replace_track_genres(db, track_id, payload.genre_ids)
         await _upsert_lyrics(db, track_id, payload.lyrics)
-        await _upsert_audio_files(db, track_id, payload.audio_files, replace=False)
+        await _upsert_audio_files(db, track_id, audio_files, replace=False)
         await _recompute_album_track_count(db, payload.album_id)
     except IntegrityError as exc:
         raise _integrity_exception(exc, "Could not create track with the provided data.") from exc
@@ -1185,6 +1385,11 @@ async def update_track(
         raise HTTPException(status_code=404, detail="Track not found.")
 
     values = payload.model_dump(exclude_unset=True, by_alias=False)
+    audio_files_input = payload.audio_files if "audio_files" in values else None
+    inferred_duration_ms: int | None = None
+    if audio_files_input is not None:
+        inferred_duration_ms = _enrich_audio_files(audio_files_input)
+
     update_values: dict[str, Any] = {}
     if "title" in values:
         update_values["title"] = values["title"].strip()
@@ -1197,7 +1402,12 @@ async def update_track(
     if "disc_number" in values:
         update_values["disc_number"] = values["disc_number"]
     if "duration_ms" in values:
-        update_values["duration_ms"] = values["duration_ms"]
+        explicit_duration = int(values["duration_ms"] or 0)
+        if explicit_duration <= 0 and inferred_duration_ms is not None:
+            explicit_duration = inferred_duration_ms
+        update_values["duration_ms"] = explicit_duration
+    elif inferred_duration_ms is not None:
+        update_values["duration_ms"] = inferred_duration_ms
     if "explicit" in values:
         update_values["explicit"] = values["explicit"]
     if "status" in values:
@@ -1206,6 +1416,20 @@ async def update_track(
             update_values["published_at"] = datetime.now(UTC)
         if values["status"] == "archived":
             update_values["archived_at"] = datetime.now(UTC)
+
+    resulting_status = update_values.get("status", existing["status"])
+    resulting_duration_ms = int(update_values.get("duration_ms", existing.get("durationMs") or 0))
+    if audio_files_input is None:
+        resulting_has_audio = bool(existing.get("audioFiles"))
+    elif values.get("replace_audio_files"):
+        resulting_has_audio = len(audio_files_input) > 0
+    else:
+        resulting_has_audio = bool(existing.get("audioFiles")) or len(audio_files_input) > 0
+    _ensure_published_track_requirements(
+        resulting_status,
+        duration_ms=resulting_duration_ms,
+        has_audio_files=resulting_has_audio,
+    )
 
     primary_artist_for_links = update_values.get("primary_artist_id", existing["primaryArtistId"])
 
@@ -1228,11 +1452,11 @@ async def update_track(
         await _upsert_lyrics(db, track_id, values["lyrics"])
     if values.get("clear_lyrics"):
         await db.execute(text("DELETE FROM lyrics WHERE track_id = :track_id"), {"track_id": track_id})
-    if "audio_files" in values and values["audio_files"] is not None:
+    if audio_files_input is not None:
         await _upsert_audio_files(
             db,
             track_id,
-            values["audio_files"],
+            audio_files_input,
             replace=bool(values.get("replace_audio_files")),
         )
 

@@ -1,9 +1,11 @@
+import type { AxiosError } from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FormEvent, useMemo, useState } from 'react'
 import {
   createAlbum,
   createArtist,
   createTrack,
+  inspectAudio,
   listAlbums,
   listArtists,
   listGenres,
@@ -13,11 +15,13 @@ import {
   updateTrack,
 } from '../services/internal'
 import { useAuthStore } from '../store/authStore'
-import type { AlbumType, ContentStatus, TrackAudioFile } from '../types'
+import type { AlbumType, AudioInspection, ContentStatus, TrackAudioFile } from '../types'
 
 type Tab = 'artists' | 'albums' | 'tracks'
+type StatusFilter = ContentStatus | 'all'
 
 const statusOptions: ContentStatus[] = ['draft', 'review', 'published', 'archived']
+const statusFilterOptions: StatusFilter[] = ['all', ...statusOptions]
 const albumTypeOptions: AlbumType[] = ['album', 'single', 'ep', 'compilation']
 
 function parseCsv(raw: string): string[] {
@@ -32,6 +36,23 @@ function parseNumber(raw: string): number | undefined {
   return Number.isFinite(value) ? value : undefined
 }
 
+function asErrorMessage(error: unknown, fallback: string): string {
+  const axiosError = error as AxiosError<{ detail?: string }>
+  return axiosError.response?.data?.detail ?? fallback
+}
+
+function formatBytes(value: number | undefined): string {
+  if (value === undefined || value <= 0) return '-'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let amount = value
+  let unitIndex = 0
+  while (amount >= 1024 && unitIndex < units.length - 1) {
+    amount /= 1024
+    unitIndex += 1
+  }
+  return `${amount.toFixed(1)} ${units[unitIndex]}`
+}
+
 export default function Dashboard() {
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
@@ -39,57 +60,124 @@ export default function Dashboard() {
 
   const [tab, setTab] = useState<Tab>('artists')
 
+  // Search/filter controls so existing catalog can be explored on-demand.
+  const [artistSearch, setArtistSearch] = useState('')
+  const [artistStatusFilter, setArtistStatusFilter] = useState<StatusFilter>('all')
+
+  const [albumSearch, setAlbumSearch] = useState('')
+  const [albumStatusFilter, setAlbumStatusFilter] = useState<StatusFilter>('all')
+  const [albumArtistFilter, setAlbumArtistFilter] = useState<string>('all')
+
+  const [trackSearch, setTrackSearch] = useState('')
+  const [trackStatusFilter, setTrackStatusFilter] = useState<StatusFilter>('all')
+  const [trackArtistFilter, setTrackArtistFilter] = useState<string>('all')
+  const [trackAlbumFilter, setTrackAlbumFilter] = useState<string>('all')
+
   const genres = useQuery({ queryKey: ['genres'], queryFn: listGenres })
-  const artists = useQuery({ queryKey: ['artists'], queryFn: () => listArtists({ limit: 100 }) })
-  const albums = useQuery({ queryKey: ['albums'], queryFn: () => listAlbums({ limit: 100 }) })
-  const tracks = useQuery({ queryKey: ['tracks'], queryFn: () => listTracks({ limit: 100 }) })
+
+  const artistOptionsQuery = useQuery({
+    queryKey: ['artists-options'],
+    queryFn: () => listArtists({ limit: 500 }),
+  })
+  const albumOptionsQuery = useQuery({
+    queryKey: ['albums-options'],
+    queryFn: () => listAlbums({ limit: 500 }),
+  })
+
+  const artists = useQuery({
+    queryKey: ['artists', artistStatusFilter, artistSearch],
+    queryFn: () => listArtists({
+      limit: 250,
+      status: artistStatusFilter === 'all' ? undefined : artistStatusFilter,
+      q: artistSearch.trim() || undefined,
+    }),
+  })
+
+  const albums = useQuery({
+    queryKey: ['albums', albumStatusFilter, albumArtistFilter, albumSearch],
+    queryFn: () => listAlbums({
+      limit: 250,
+      status: albumStatusFilter === 'all' ? undefined : albumStatusFilter,
+      artistId: albumArtistFilter === 'all' ? undefined : albumArtistFilter,
+      q: albumSearch.trim() || undefined,
+    }),
+  })
+
+  const tracks = useQuery({
+    queryKey: ['tracks', trackStatusFilter, trackArtistFilter, trackAlbumFilter, trackSearch],
+    queryFn: () => listTracks({
+      limit: 250,
+      status: trackStatusFilter === 'all' ? undefined : trackStatusFilter,
+      artistId: trackArtistFilter === 'all' ? undefined : trackArtistFilter,
+      albumId: trackAlbumFilter === 'all' ? undefined : trackAlbumFilter,
+      q: trackSearch.trim() || undefined,
+    }),
+  })
+
+  const activeArtistOptions = artistOptionsQuery.data?.items ?? []
+  const activeAlbumOptions = albumOptionsQuery.data?.items ?? []
 
   const [artistName, setArtistName] = useState('')
   const [artistSlug, setArtistSlug] = useState('')
   const [artistBio, setArtistBio] = useState('')
+  const [artistImageUrl, setArtistImageUrl] = useState('')
+  const [artistHeaderImageUrl, setArtistHeaderImageUrl] = useState('')
+  const [artistPersonaPrompt, setArtistPersonaPrompt] = useState('')
   const [artistStyles, setArtistStyles] = useState('')
   const [artistStatus, setArtistStatus] = useState<ContentStatus>('draft')
   const [artistGenreIds, setArtistGenreIds] = useState<string[]>([])
+  const [artistFormError, setArtistFormError] = useState<string | null>(null)
 
   const [albumTitle, setAlbumTitle] = useState('')
   const [albumSlug, setAlbumSlug] = useState('')
   const [albumArtistId, setAlbumArtistId] = useState('')
   const [albumDescription, setAlbumDescription] = useState('')
   const [albumReleaseDate, setAlbumReleaseDate] = useState('')
+  const [albumCoverUrl, setAlbumCoverUrl] = useState('')
   const [albumType, setAlbumType] = useState<AlbumType>('album')
   const [albumStatus, setAlbumStatus] = useState<ContentStatus>('draft')
   const [albumGenreIds, setAlbumGenreIds] = useState<string[]>([])
+  const [albumFormError, setAlbumFormError] = useState<string | null>(null)
 
   const [trackTitle, setTrackTitle] = useState('')
   const [trackAlbumId, setTrackAlbumId] = useState('')
   const [trackArtistId, setTrackArtistId] = useState('')
   const [trackNumber, setTrackNumber] = useState('1')
   const [discNumber, setDiscNumber] = useState('1')
-  const [durationMs, setDurationMs] = useState('180000')
+  const [durationMs, setDurationMs] = useState('')
   const [trackStatus, setTrackStatus] = useState<ContentStatus>('draft')
   const [trackExplicit, setTrackExplicit] = useState(false)
   const [trackGenreIds, setTrackGenreIds] = useState<string[]>([])
   const [audioPath, setAudioPath] = useState('')
   const [audioQuality, setAudioQuality] = useState<TrackAudioFile['quality']>('high_320')
   const [audioFormat, setAudioFormat] = useState<TrackAudioFile['format']>('mp3')
+  const [audioBitrateKbps, setAudioBitrateKbps] = useState('')
+  const [audioSampleRateHz, setAudioSampleRateHz] = useState('')
+  const [audioChannels, setAudioChannels] = useState('2')
+  const [audioFileSizeBytes, setAudioFileSizeBytes] = useState('')
+  const [audioChecksumSha256, setAudioChecksumSha256] = useState('')
+  const [audioInspectError, setAudioInspectError] = useState<string | null>(null)
+  const [trackFormError, setTrackFormError] = useState<string | null>(null)
 
   const [artistStatusDraft, setArtistStatusDraft] = useState<Record<string, ContentStatus>>({})
   const [albumStatusDraft, setAlbumStatusDraft] = useState<Record<string, ContentStatus>>({})
   const [trackStatusDraft, setTrackStatusDraft] = useState<Record<string, ContentStatus>>({})
 
-  const activeArtistOptions = artists.data?.items ?? []
-  const activeAlbumOptions = albums.data?.items ?? []
-
   const createArtistMutation = useMutation({
     mutationFn: createArtist,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['artists'] })
+      queryClient.invalidateQueries({ queryKey: ['artists-options'] })
       setArtistName('')
       setArtistSlug('')
       setArtistBio('')
+      setArtistImageUrl('')
+      setArtistHeaderImageUrl('')
+      setArtistPersonaPrompt('')
       setArtistStyles('')
       setArtistGenreIds([])
       setArtistStatus('draft')
+      setArtistFormError(null)
     },
   })
 
@@ -97,12 +185,46 @@ export default function Dashboard() {
     mutationFn: createAlbum,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['albums'] })
+      queryClient.invalidateQueries({ queryKey: ['albums-options'] })
       setAlbumTitle('')
       setAlbumSlug('')
       setAlbumDescription('')
       setAlbumReleaseDate('')
+      setAlbumCoverUrl('')
       setAlbumGenreIds([])
       setAlbumStatus('draft')
+      setAlbumFormError(null)
+    },
+  })
+
+  const inspectAudioMutation = useMutation({
+    mutationFn: inspectAudio,
+    onSuccess: (inspection: AudioInspection) => {
+      if (inspection.durationMs && inspection.durationMs > 0) {
+        setDurationMs(String(inspection.durationMs))
+      }
+      if (inspection.format) {
+        setAudioFormat(inspection.format)
+      }
+      if (inspection.bitrateKbps) {
+        setAudioBitrateKbps(String(inspection.bitrateKbps))
+      }
+      if (inspection.sampleRateHz) {
+        setAudioSampleRateHz(String(inspection.sampleRateHz))
+      }
+      if (inspection.channels) {
+        setAudioChannels(String(inspection.channels))
+      }
+      if (inspection.fileSizeBytes) {
+        setAudioFileSizeBytes(String(inspection.fileSizeBytes))
+      }
+      if (inspection.checksumSha256) {
+        setAudioChecksumSha256(inspection.checksumSha256)
+      }
+      setAudioInspectError(null)
+    },
+    onError: (error) => {
+      setAudioInspectError(asErrorMessage(error, 'Unable to inspect audio metadata.'))
     },
   })
 
@@ -114,22 +236,37 @@ export default function Dashboard() {
       setTrackTitle('')
       setTrackNumber('1')
       setDiscNumber('1')
-      setDurationMs('180000')
+      setDurationMs('')
       setTrackExplicit(false)
       setTrackStatus('draft')
       setTrackGenreIds([])
       setAudioPath('')
+      setAudioQuality('high_320')
+      setAudioFormat('mp3')
+      setAudioBitrateKbps('')
+      setAudioSampleRateHz('')
+      setAudioChannels('2')
+      setAudioFileSizeBytes('')
+      setAudioChecksumSha256('')
+      setTrackFormError(null)
+      setAudioInspectError(null)
     },
   })
 
   const updateArtistMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ContentStatus }) => updateArtist(id, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['artists'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artists'] })
+      queryClient.invalidateQueries({ queryKey: ['artists-options'] })
+    },
   })
 
   const updateAlbumMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ContentStatus }) => updateAlbum(id, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['albums'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['albums'] })
+      queryClient.invalidateQueries({ queryKey: ['albums-options'] })
+    },
   })
 
   const updateTrackMutation = useMutation({
@@ -139,10 +276,24 @@ export default function Dashboard() {
 
   function onArtistSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setArtistFormError(null)
+
+    if (artistStatus === 'published' && !artistImageUrl.trim()) {
+      setArtistFormError('Published artists require a portrait image URL/path.')
+      return
+    }
+    if (artistStatus === 'published' && !artistBio.trim()) {
+      setArtistFormError('Published artists require a meaningful bio.')
+      return
+    }
+
     createArtistMutation.mutate({
       name: artistName,
       slug: artistSlug || undefined,
       bio: artistBio || undefined,
+      imageUrl: artistImageUrl || undefined,
+      headerImageUrl: artistHeaderImageUrl || undefined,
+      personaPrompt: artistPersonaPrompt || undefined,
       status: artistStatus,
       styleTags: parseCsv(artistStyles),
       genreIds: artistGenreIds,
@@ -151,11 +302,25 @@ export default function Dashboard() {
 
   function onAlbumSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!albumArtistId) return
+    setAlbumFormError(null)
+    if (!albumArtistId) {
+      setAlbumFormError('Select an artist for the album.')
+      return
+    }
+    if (albumStatus === 'published' && !albumCoverUrl.trim()) {
+      setAlbumFormError('Published albums require cover art URL/path.')
+      return
+    }
+    if (albumStatus === 'published' && !albumReleaseDate) {
+      setAlbumFormError('Published albums require a release date.')
+      return
+    }
+
     createAlbumMutation.mutate({
       title: albumTitle,
       slug: albumSlug || undefined,
       artistId: albumArtistId,
+      coverUrl: albumCoverUrl || undefined,
       description: albumDescription || undefined,
       releaseDate: albumReleaseDate || undefined,
       albumType,
@@ -164,17 +329,35 @@ export default function Dashboard() {
     })
   }
 
+  function inspectCurrentAudioPath() {
+    const storageUrl = audioPath.trim()
+    if (!storageUrl) return
+    inspectAudioMutation.mutate({ storageUrl })
+  }
+
   function onTrackSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!trackAlbumId) return
+    setTrackFormError(null)
+    if (!trackAlbumId) {
+      setTrackFormError('Select an album for the track.')
+      return
+    }
+    if (trackStatus === 'published' && !audioPath.trim()) {
+      setTrackFormError('Published tracks require an audio file path.')
+      return
+    }
 
-    const audioFiles = audioPath
+    const audioFiles = audioPath.trim()
       ? [{
           quality: audioQuality,
           format: audioFormat,
-          storageUrl: audioPath,
-          channels: 2,
+          storageUrl: audioPath.trim(),
+          channels: Number(audioChannels) || 2,
+          bitrateKbps: parseNumber(audioBitrateKbps),
+          sampleRateHz: parseNumber(audioSampleRateHz),
+          fileSizeBytes: parseNumber(audioFileSizeBytes),
           durationMs: parseNumber(durationMs),
+          checksumSha256: audioChecksumSha256.trim() || undefined,
         }]
       : []
 
@@ -192,7 +375,12 @@ export default function Dashboard() {
     })
   }
 
-  const loading = genres.isLoading || artists.isLoading || albums.isLoading || tracks.isLoading
+  const loading = genres.isLoading
+    || artistOptionsQuery.isLoading
+    || albumOptionsQuery.isLoading
+    || artists.isLoading
+    || albums.isLoading
+    || tracks.isLoading
 
   const toolbarTitle = useMemo(() => {
     if (tab === 'artists') return 'Artist Management'
@@ -244,7 +432,7 @@ export default function Dashboard() {
         <header>
           <h2 className="text-2xl font-semibold">{toolbarTitle}</h2>
           <p className="text-sm text-muted-fg">
-            Add and manage catalog entries. Audio files can point to local `data/...` paths.
+            Add and manage catalog entries. Existing records are searchable below for quick edits.
           </p>
         </header>
 
@@ -252,6 +440,31 @@ export default function Dashboard() {
 
         {tab === 'artists' && (
           <section className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 rounded-lg border border-border bg-surface/40">
+              <label className="text-sm">
+                Search artists
+                <input
+                  className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2"
+                  value={artistSearch}
+                  onChange={(e) => setArtistSearch(e.target.value)}
+                  placeholder="name or slug"
+                />
+              </label>
+              <label className="text-sm">
+                Status filter
+                <select
+                  className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2"
+                  value={artistStatusFilter}
+                  onChange={(e) => setArtistStatusFilter(e.target.value as StatusFilter)}
+                >
+                  {statusFilterOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </label>
+              <div className="text-sm flex items-end text-muted-fg">
+                {artists.data?.total ?? 0} artist{(artists.data?.total ?? 0) === 1 ? '' : 's'} found
+              </div>
+            </div>
+
             <form onSubmit={onArtistSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 rounded-lg border border-border bg-surface/40">
               <label className="text-sm">
                 Name
@@ -261,9 +474,21 @@ export default function Dashboard() {
                 Slug (optional)
                 <input className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2" value={artistSlug} onChange={(e) => setArtistSlug(e.target.value)} />
               </label>
+              <label className="text-sm">
+                Portrait image URL/path
+                <input className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2" value={artistImageUrl} onChange={(e) => setArtistImageUrl(e.target.value)} placeholder="data/images/artist.jpg or https://..." />
+              </label>
+              <label className="text-sm">
+                Header image URL/path (optional)
+                <input className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2" value={artistHeaderImageUrl} onChange={(e) => setArtistHeaderImageUrl(e.target.value)} placeholder="data/images/artist-header.jpg" />
+              </label>
               <label className="text-sm lg:col-span-2">
                 Bio
                 <textarea className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2 min-h-24" value={artistBio} onChange={(e) => setArtistBio(e.target.value)} />
+              </label>
+              <label className="text-sm lg:col-span-2">
+                Persona prompt (optional)
+                <textarea className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2 min-h-20" value={artistPersonaPrompt} onChange={(e) => setArtistPersonaPrompt(e.target.value)} />
               </label>
               <label className="text-sm">
                 Style tags (comma separated)
@@ -286,7 +511,18 @@ export default function Dashboard() {
                   {(genres.data ?? []).map((genre) => <option key={genre.id} value={genre.id}>{genre.name}</option>)}
                 </select>
               </label>
+              {artistFormError && (
+                <p className="lg:col-span-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                  {artistFormError}
+                </p>
+              )}
+              {createArtistMutation.error && (
+                <p className="lg:col-span-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {asErrorMessage(createArtistMutation.error, 'Failed to create artist.')}
+                </p>
+              )}
               <div className="lg:col-span-2">
+                <p className="mb-2 text-xs text-muted-fg">Published artists require `imageUrl` and `bio`.</p>
                 <button disabled={createArtistMutation.isPending} className="rounded-md bg-accent text-accent-fg px-4 py-2 text-sm font-semibold disabled:opacity-60">
                   {createArtistMutation.isPending ? 'Creating...' : 'Create artist'}
                 </button>
@@ -298,8 +534,9 @@ export default function Dashboard() {
                 <thead className="bg-surface/70">
                   <tr>
                     <th className="text-left px-3 py-2">Name</th>
-                    <th className="text-left px-3 py-2">Slug</th>
                     <th className="text-left px-3 py-2">Status</th>
+                    <th className="text-left px-3 py-2">Portrait</th>
+                    <th className="text-left px-3 py-2">Updated</th>
                     <th className="text-left px-3 py-2">Update</th>
                   </tr>
                 </thead>
@@ -308,15 +545,20 @@ export default function Dashboard() {
                     const selectedStatus = artistStatusDraft[artist.id] ?? artist.status
                     return (
                       <tr key={artist.id} className="border-t border-border/60">
-                        <td className="px-3 py-2">{artist.name}</td>
-                        <td className="px-3 py-2 text-muted-fg">{artist.slug}</td>
+                        <td className="px-3 py-2">
+                          <p className="font-medium">{artist.name}</p>
+                          <p className="text-xs text-muted-fg">{artist.slug}</p>
+                        </td>
                         <td className="px-3 py-2">{artist.status}</td>
+                        <td className="px-3 py-2 text-xs text-muted-fg">{artist.imageUrl ? 'Configured' : 'Missing'}</td>
+                        <td className="px-3 py-2 text-xs text-muted-fg">{new Date(artist.updatedAt).toLocaleString()}</td>
                         <td className="px-3 py-2 flex items-center gap-2">
                           <select className="rounded-md bg-background border border-border px-2 py-1" value={selectedStatus} onChange={(e) => setArtistStatusDraft((draft) => ({ ...draft, [artist.id]: e.target.value as ContentStatus }))}>
                             {statusOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                           </select>
                           <button
-                            className="rounded-md border border-border px-2 py-1 hover:bg-surface"
+                            className="rounded-md border border-border px-2 py-1 hover:bg-surface disabled:opacity-60"
+                            disabled={updateArtistMutation.isPending}
                             onClick={() => updateArtistMutation.mutate({ id: artist.id, status: selectedStatus })}
                           >
                             Save
@@ -333,6 +575,42 @@ export default function Dashboard() {
 
         {tab === 'albums' && (
           <section className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 rounded-lg border border-border bg-surface/40">
+              <label className="text-sm">
+                Search albums
+                <input
+                  className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2"
+                  value={albumSearch}
+                  onChange={(e) => setAlbumSearch(e.target.value)}
+                  placeholder="title or slug"
+                />
+              </label>
+              <label className="text-sm">
+                Status filter
+                <select
+                  className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2"
+                  value={albumStatusFilter}
+                  onChange={(e) => setAlbumStatusFilter(e.target.value as StatusFilter)}
+                >
+                  {statusFilterOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </label>
+              <label className="text-sm">
+                Artist filter
+                <select
+                  className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2"
+                  value={albumArtistFilter}
+                  onChange={(e) => setAlbumArtistFilter(e.target.value)}
+                >
+                  <option value="all">All artists</option>
+                  {activeArtistOptions.map((artist) => <option key={artist.id} value={artist.id}>{artist.name}</option>)}
+                </select>
+              </label>
+              <div className="text-sm flex items-end text-muted-fg">
+                {albums.data?.total ?? 0} album{(albums.data?.total ?? 0) === 1 ? '' : 's'} found
+              </div>
+            </div>
+
             <form onSubmit={onAlbumSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 rounded-lg border border-border bg-surface/40">
               <label className="text-sm">
                 Title
@@ -366,6 +644,10 @@ export default function Dashboard() {
                 </select>
               </label>
               <label className="text-sm lg:col-span-2">
+                Cover art URL/path
+                <input className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2" value={albumCoverUrl} onChange={(e) => setAlbumCoverUrl(e.target.value)} placeholder="data/images/album-cover.jpg or https://..." />
+              </label>
+              <label className="text-sm lg:col-span-2">
                 Description
                 <textarea className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2 min-h-24" value={albumDescription} onChange={(e) => setAlbumDescription(e.target.value)} />
               </label>
@@ -375,7 +657,18 @@ export default function Dashboard() {
                   {(genres.data ?? []).map((genre) => <option key={genre.id} value={genre.id}>{genre.name}</option>)}
                 </select>
               </label>
+              {albumFormError && (
+                <p className="lg:col-span-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                  {albumFormError}
+                </p>
+              )}
+              {createAlbumMutation.error && (
+                <p className="lg:col-span-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {asErrorMessage(createAlbumMutation.error, 'Failed to create album.')}
+                </p>
+              )}
               <div className="lg:col-span-2">
+                <p className="mb-2 text-xs text-muted-fg">Published albums require `coverUrl` and `releaseDate`.</p>
                 <button disabled={createAlbumMutation.isPending} className="rounded-md bg-accent text-accent-fg px-4 py-2 text-sm font-semibold disabled:opacity-60">
                   {createAlbumMutation.isPending ? 'Creating...' : 'Create album'}
                 </button>
@@ -389,6 +682,7 @@ export default function Dashboard() {
                     <th className="text-left px-3 py-2">Album</th>
                     <th className="text-left px-3 py-2">Artist</th>
                     <th className="text-left px-3 py-2">Tracks</th>
+                    <th className="text-left px-3 py-2">Cover</th>
                     <th className="text-left px-3 py-2">Status</th>
                     <th className="text-left px-3 py-2">Update</th>
                   </tr>
@@ -398,15 +692,19 @@ export default function Dashboard() {
                     const selectedStatus = albumStatusDraft[album.id] ?? album.status
                     return (
                       <tr key={album.id} className="border-t border-border/60">
-                        <td className="px-3 py-2">{album.title}</td>
+                        <td className="px-3 py-2">
+                          <p className="font-medium">{album.title}</p>
+                          <p className="text-xs text-muted-fg">{album.slug}</p>
+                        </td>
                         <td className="px-3 py-2 text-muted-fg">{album.artistName}</td>
                         <td className="px-3 py-2">{album.trackCount}</td>
+                        <td className="px-3 py-2 text-xs text-muted-fg">{album.coverUrl ? 'Configured' : 'Missing'}</td>
                         <td className="px-3 py-2">{album.status}</td>
                         <td className="px-3 py-2 flex items-center gap-2">
                           <select className="rounded-md bg-background border border-border px-2 py-1" value={selectedStatus} onChange={(e) => setAlbumStatusDraft((draft) => ({ ...draft, [album.id]: e.target.value as ContentStatus }))}>
                             {statusOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                           </select>
-                          <button className="rounded-md border border-border px-2 py-1 hover:bg-surface" onClick={() => updateAlbumMutation.mutate({ id: album.id, status: selectedStatus })}>Save</button>
+                          <button className="rounded-md border border-border px-2 py-1 hover:bg-surface disabled:opacity-60" disabled={updateAlbumMutation.isPending} onClick={() => updateAlbumMutation.mutate({ id: album.id, status: selectedStatus })}>Save</button>
                         </td>
                       </tr>
                     )
@@ -419,6 +717,53 @@ export default function Dashboard() {
 
         {tab === 'tracks' && (
           <section className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 rounded-lg border border-border bg-surface/40">
+              <label className="text-sm">
+                Search tracks
+                <input
+                  className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2"
+                  value={trackSearch}
+                  onChange={(e) => setTrackSearch(e.target.value)}
+                  placeholder="track title"
+                />
+              </label>
+              <label className="text-sm">
+                Status filter
+                <select
+                  className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2"
+                  value={trackStatusFilter}
+                  onChange={(e) => setTrackStatusFilter(e.target.value as StatusFilter)}
+                >
+                  {statusFilterOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </label>
+              <label className="text-sm">
+                Artist filter
+                <select
+                  className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2"
+                  value={trackArtistFilter}
+                  onChange={(e) => setTrackArtistFilter(e.target.value)}
+                >
+                  <option value="all">All artists</option>
+                  {activeArtistOptions.map((artist) => <option key={artist.id} value={artist.id}>{artist.name}</option>)}
+                </select>
+              </label>
+              <label className="text-sm">
+                Album filter
+                <select
+                  className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2"
+                  value={trackAlbumFilter}
+                  onChange={(e) => setTrackAlbumFilter(e.target.value)}
+                >
+                  <option value="all">All albums</option>
+                  {activeAlbumOptions.map((album) => <option key={album.id} value={album.id}>{album.title}</option>)}
+                </select>
+              </label>
+              <div className="text-sm flex items-end text-muted-fg">
+                {tracks.data?.total ?? 0} track{(tracks.data?.total ?? 0) === 1 ? '' : 's'} found
+              </div>
+            </div>
+
             <form onSubmit={onTrackSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 rounded-lg border border-border bg-surface/40">
               <label className="text-sm">
                 Title
@@ -460,10 +805,28 @@ export default function Dashboard() {
                 <input type="checkbox" checked={trackExplicit} onChange={(e) => setTrackExplicit(e.target.checked)} />
                 Explicit track
               </label>
+
               <label className="text-sm lg:col-span-2">
-                Audio file path (optional)
-                <input className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2" value={audioPath} onChange={(e) => setAudioPath(e.target.value)} placeholder="data/audio/my-song.mp3" />
+                Audio file path
+                <div className="mt-1 flex gap-2">
+                  <input
+                    className="w-full rounded-md bg-background border border-border px-3 py-2"
+                    value={audioPath}
+                    onChange={(e) => setAudioPath(e.target.value)}
+                    onBlur={inspectCurrentAudioPath}
+                    placeholder="data/audio/my-song.mp3"
+                  />
+                  <button
+                    type="button"
+                    onClick={inspectCurrentAudioPath}
+                    disabled={!audioPath.trim() || inspectAudioMutation.isPending}
+                    className="rounded-md border border-border px-3 py-2 text-xs hover:bg-surface disabled:opacity-60"
+                  >
+                    {inspectAudioMutation.isPending ? 'Inspecting...' : 'Infer'}
+                  </button>
+                </div>
               </label>
+
               <label className="text-sm">
                 Audio quality
                 <select className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2" value={audioQuality} onChange={(e) => setAudioQuality(e.target.value as TrackAudioFile['quality'])}>
@@ -483,13 +846,55 @@ export default function Dashboard() {
                   <option value="opus">opus</option>
                 </select>
               </label>
+              <label className="text-sm">
+                Bitrate (kbps)
+                <input className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2" value={audioBitrateKbps} onChange={(e) => setAudioBitrateKbps(e.target.value)} />
+              </label>
+              <label className="text-sm">
+                Sample rate (Hz)
+                <input className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2" value={audioSampleRateHz} onChange={(e) => setAudioSampleRateHz(e.target.value)} />
+              </label>
+              <label className="text-sm">
+                Channels
+                <input className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2" value={audioChannels} onChange={(e) => setAudioChannels(e.target.value)} />
+              </label>
+              <label className="text-sm">
+                File size (bytes)
+                <input className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2" value={audioFileSizeBytes} onChange={(e) => setAudioFileSizeBytes(e.target.value)} />
+              </label>
+              <label className="text-sm lg:col-span-2">
+                SHA-256 checksum
+                <input className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2 font-mono text-xs" value={audioChecksumSha256} onChange={(e) => setAudioChecksumSha256(e.target.value)} />
+              </label>
               <label className="text-sm lg:col-span-2">
                 Genres
                 <select multiple className="mt-1 w-full rounded-md bg-background border border-border px-3 py-2 min-h-28" value={trackGenreIds} onChange={(e) => setTrackGenreIds(Array.from(e.target.selectedOptions).map((opt) => opt.value))}>
                   {(genres.data ?? []).map((genre) => <option key={genre.id} value={genre.id}>{genre.name}</option>)}
                 </select>
               </label>
+
+              {audioPath.trim() && (
+                <p className="lg:col-span-2 text-xs text-muted-fg">
+                  Local file details: {formatBytes(parseNumber(audioFileSizeBytes))} {audioSampleRateHz ? `· ${audioSampleRateHz} Hz` : ''} {audioBitrateKbps ? `· ${audioBitrateKbps} kbps` : ''}
+                </p>
+              )}
+              {audioInspectError && (
+                <p className="lg:col-span-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                  {audioInspectError}
+                </p>
+              )}
+              {trackFormError && (
+                <p className="lg:col-span-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                  {trackFormError}
+                </p>
+              )}
+              {createTrackMutation.error && (
+                <p className="lg:col-span-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {asErrorMessage(createTrackMutation.error, 'Failed to create track.')}
+                </p>
+              )}
               <div className="lg:col-span-2">
+                <p className="mb-2 text-xs text-muted-fg">Published tracks require playable audio and duration.</p>
                 <button disabled={createTrackMutation.isPending} className="rounded-md bg-accent text-accent-fg px-4 py-2 text-sm font-semibold disabled:opacity-60">
                   {createTrackMutation.isPending ? 'Creating...' : 'Create track'}
                 </button>
@@ -504,6 +909,7 @@ export default function Dashboard() {
                     <th className="text-left px-3 py-2">Album</th>
                     <th className="text-left px-3 py-2">Artist</th>
                     <th className="text-left px-3 py-2">Duration</th>
+                    <th className="text-left px-3 py-2">Audio</th>
                     <th className="text-left px-3 py-2">Status</th>
                     <th className="text-left px-3 py-2">Update</th>
                   </tr>
@@ -517,12 +923,13 @@ export default function Dashboard() {
                         <td className="px-3 py-2 text-muted-fg">{track.albumTitle}</td>
                         <td className="px-3 py-2 text-muted-fg">{track.primaryArtistName}</td>
                         <td className="px-3 py-2">{Math.round(track.durationMs / 1000)}s</td>
+                        <td className="px-3 py-2 text-xs text-muted-fg">{track.audioFiles.length} file{track.audioFiles.length === 1 ? '' : 's'}</td>
                         <td className="px-3 py-2">{track.status}</td>
                         <td className="px-3 py-2 flex items-center gap-2">
                           <select className="rounded-md bg-background border border-border px-2 py-1" value={selectedStatus} onChange={(e) => setTrackStatusDraft((draft) => ({ ...draft, [track.id]: e.target.value as ContentStatus }))}>
                             {statusOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                           </select>
-                          <button className="rounded-md border border-border px-2 py-1 hover:bg-surface" onClick={() => updateTrackMutation.mutate({ id: track.id, status: selectedStatus })}>Save</button>
+                          <button className="rounded-md border border-border px-2 py-1 hover:bg-surface disabled:opacity-60" disabled={updateTrackMutation.isPending} onClick={() => updateTrackMutation.mutate({ id: track.id, status: selectedStatus })}>Save</button>
                         </td>
                       </tr>
                     )

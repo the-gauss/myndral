@@ -56,12 +56,15 @@ export interface Playlist {
   updatedAt: string
 }
 
+export type SubscriptionPlan = 'free' | 'premium_monthly' | 'premium_annual'
+
 export interface User {
   id: string
   username: string
   email: string
   displayName: string
   avatarUrl?: string
+  subscriptionPlan: SubscriptionPlan
   createdAt: string
 }
 

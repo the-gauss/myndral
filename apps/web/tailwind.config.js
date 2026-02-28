@@ -4,18 +4,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        // MyndralAI dark theme (Spotify-inspired)
-        background: '#121212',
-        surface:    '#181818',
-        elevated:   '#282828',
-        highlight:  '#333333',
-        accent:     '#1ed760',   // primary brand green
-        'accent-hover': '#1fdf64',
-        muted:      '#b3b3b3',
-        subtle:     '#727272',
+        background:     'rgb(var(--background) / <alpha-value>)',
+        foreground:     'rgb(var(--foreground) / <alpha-value>)',
+        surface:        'rgb(var(--surface) / <alpha-value>)',
+        border:         'rgb(var(--border) / <alpha-value>)',
+        muted:          'rgb(var(--muted) / <alpha-value>)',
+        'muted-fg':     'rgb(var(--muted-foreground) / <alpha-value>)',
+        accent:         'rgb(var(--accent) / <alpha-value>)',
+        'accent-fg':    'rgb(var(--accent-foreground) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['Circular', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
     },
   },

@@ -1,4 +1,5 @@
-import { Heart, MoreHorizontal } from 'lucide-react'
+import { Heart, MoreHorizontal, Pause, Play } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { usePlayer } from '../../hooks/usePlayer'
 import type { Track } from '../../types'
 
@@ -26,41 +27,54 @@ export default function TrackRow({ track, index, queue, showAlbum = false }: Pro
   return (
     <div
       onDoubleClick={handleClick}
-      className={`group flex items-center gap-4 px-4 py-2 rounded hover:bg-white/10 cursor-pointer transition-colors
-        ${isActive ? 'text-accent' : 'text-white'}`}
+      className={`group flex items-center gap-4 px-3 py-2 rounded hover:bg-surface transition-colors cursor-default
+        ${isActive ? 'text-accent' : 'text-foreground'}`}
     >
       {/* Index / play indicator */}
-      <div className="w-4 text-center text-sm text-muted group-hover:hidden">
-        {isActive && isPlaying ? '▶' : index ?? ''}
+      <div className="w-5 shrink-0 text-center">
+        <span className={`text-sm group-hover:hidden ${isActive ? 'text-accent' : 'text-muted-fg'}`}>
+          {isActive && isPlaying ? '▶' : (index ?? '')}
+        </span>
+        <button
+          onClick={handleClick}
+          className="hidden group-hover:flex items-center justify-center text-foreground"
+          aria-label={isActive && isPlaying ? 'Pause' : 'Play'}
+        >
+          {isActive && isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+        </button>
       </div>
-      <button
-        onClick={handleClick}
-        className="w-4 text-center text-sm hidden group-hover:block text-white"
-      >
-        {isActive && isPlaying ? '⏸' : '▶'}
-      </button>
 
       {/* Track info */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate ${isActive ? 'text-accent' : 'text-white'}`}>
+        <p className={`text-sm font-medium truncate ${isActive ? 'text-accent' : 'text-foreground'}`}>
           {track.title}
         </p>
-        <p className="text-xs text-muted truncate">{track.artist.name}</p>
+        <Link
+          to={`/artist/${track.artistId}`}
+          className="text-xs text-muted-fg truncate hover:underline"
+        >
+          {track.artist.name}
+        </Link>
       </div>
 
-      {/* Album */}
+      {/* Album column */}
       {showAlbum && (
-        <p className="hidden md:block text-xs text-muted truncate w-36">{track.album.title}</p>
+        <Link
+          to={`/album/${track.albumId}`}
+          className="hidden md:block text-xs text-muted-fg truncate w-36 hover:underline"
+        >
+          {track.album.title}
+        </Link>
       )}
 
       {/* Actions + duration */}
-      <div className="flex items-center gap-3 shrink-0">
-        <button className="text-muted hover:text-white opacity-0 group-hover:opacity-100 transition">
-          <Heart size={16} />
+      <div className="flex items-center gap-2 shrink-0">
+        <button className="text-muted-fg hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity p-1">
+          <Heart size={15} />
         </button>
-        <span className="text-xs text-muted w-10 text-right">{fmt(track.durationMs)}</span>
-        <button className="text-muted hover:text-white opacity-0 group-hover:opacity-100 transition">
-          <MoreHorizontal size={16} />
+        <span className="text-xs text-muted-fg w-10 text-right tabular-nums">{fmt(track.durationMs)}</span>
+        <button className="text-muted-fg hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity p-1">
+          <MoreHorizontal size={15} />
         </button>
       </div>
     </div>

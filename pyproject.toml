@@ -1,21 +1,9 @@
-[project]
-name = "myndral"
-version = "0.1.0"
-description = "Local-first Ursina game scaffold with LangChain/LangGraph integrations."
-readme = "README.md"
-authors = [
-    { name = "ryuukkk", email = "kartikthory@icloud.com" }
-]
-requires-python = ">=3.12"
-dependencies = [
-    "langchain>=1.1.0",
-    "langgraph>=1.0.0,<2.0.0",
-    "ursina>=8.2.0",
+# uv workspace root — no project metadata here, just workspace + tooling config
+[tool.uv.workspace]
+members = [
+    "apps/api",
+    "agents/*",
 ]
 
-[project.scripts]
-myndral = "myndral.main:main"
-
-[build-system]
-requires = ["uv_build>=0.9.7,<0.10.0"]
-build-backend = "uv_build"
+[tool.uv]
+python = "3.12"

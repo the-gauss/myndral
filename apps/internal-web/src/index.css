@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 11 15 20;
+  --foreground: 238 244 248;
+  --surface: 18 24 30;
+  --border: 45 55 66;
+  --muted: 105 120 134;
+  --muted-foreground: 153 168 182;
+  --accent: 37 126 92;
+  --accent-foreground: 237 252 245;
+  --success: 47 199 127;
+  --warning: 239 187 65;
+}
+
+@layer base {
+  html, body, #root {
+    @apply h-full bg-background text-foreground;
+    font-family: "Avenir Next", "Segoe UI", "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+}

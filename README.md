@@ -20,8 +20,10 @@ AI-generated music streaming platform. Every artist, album, track, and lyric is 
 myndral/
 ├── agents/          # LangGraph AI agents (artist, album, track, lyric generation)
 ├── apps/
-│   ├── api/         # FastAPI backend
-│   └── web/         # React + Vite frontend
+│   ├── api/          # FastAPI backend
+│   ├── ios/          # Native iOS client (planned)
+│   ├── web/          # Listener-facing React + Vite app
+│   └── internal-web/ # Internal employee studio (React + Vite)
 ├── db/
 │   ├── migrations/  # Alembic migrations
 │   └── seeds/       # Seed data scripts
@@ -70,6 +72,16 @@ npm run dev
 
 The web app will be available at `http://localhost:5173` and the API at `http://localhost:8000`.
 
+### 5. Run the internal studio web app
+
+```bash
+cd apps/internal-web
+npm install
+npm run dev
+```
+
+The internal studio will be available at `http://127.0.0.1:5174`.
+
 ## Dev login account
 
 After applying schema + seeds, you can log in with:
@@ -78,3 +90,12 @@ After applying schema + seeds, you can log in with:
 - Password: `AdminPass123!`
 
 This account is seeded by `db/seeds/03_dev_catalog.sql` with `admin` role and a premium plan.
+
+## Internal studio login account
+
+After running `db/seeds/03_dev_catalog.sql`, you can also use:
+
+- Username: `editor_test`
+- Password: `EditorPass123!`
+
+This account is seeded with `content_editor` role for `/v1/internal/*` access.

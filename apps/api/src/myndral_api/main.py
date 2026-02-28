@@ -2,7 +2,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from myndral_api.config import get_settings
-from myndral_api.routers import albums, artists, auth, health, playlists, search, stream, tracks, users
+from myndral_api.routers import (
+    albums,
+    artists,
+    auth,
+    health,
+    internal,
+    playlists,
+    search,
+    stream,
+    tracks,
+    users,
+)
 
 settings = get_settings()
 
@@ -28,6 +39,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth.router,      prefix="/v1/auth",      tags=["auth"])
 app.include_router(users.router,     prefix="/v1/users",     tags=["users"])
+app.include_router(internal.router,  prefix="/v1/internal",  tags=["internal"])
 app.include_router(artists.router,   prefix="/v1/artists",   tags=["artists"])
 app.include_router(albums.router,    prefix="/v1/albums",    tags=["albums"])
 app.include_router(tracks.router,    prefix="/v1/tracks",    tags=["tracks"])

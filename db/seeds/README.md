@@ -40,9 +40,11 @@ All seed files are **idempotent** — safe to re-run. `01_genres.sql` and
 |---|---|---|
 | `system` | admin | Content attribution for seeded catalog; no real password |
 | `admin_test` | admin | Full-access login account; password: `AdminPass123!` |
+| `editor_test` | content_editor | Internal tool login account; password: `EditorPass123!` |
 | `alice_dev` | listener | Active Premium subscription |
 | `bob_dev` | listener | Free subscription |
 
-`admin_test` is seeded with a real bcrypt hash so you can log in immediately.
-Other sample users keep placeholder hashes. Use the API's `/v1/auth/register`
-endpoint to create additional real accounts in local development.
+`admin_test` and `editor_test` are seeded with real bcrypt hashes so you can log
+in immediately. Other sample users keep placeholder hashes. Use the API's
+`/v1/auth/register` endpoint to create additional real accounts in local
+development.

@@ -61,4 +61,4 @@ ehthumbs.db
 *.tmp
 *.bak
 .claude
-
+data/

@@ -24,6 +24,7 @@ DECLARE
 
   -- ── Test accounts ────────────────────────────────────────────────────────
   v_user_admin        UUID;
+  v_user_editor       UUID;
   v_user_alice        UUID;
   v_user_bob          UUID;
 
@@ -149,6 +150,31 @@ BEGIN
   ON CONFLICT (username) DO NOTHING;
   SELECT id INTO v_user_bob FROM users WHERE username = 'bob_dev';
 
+  -- Internal content editor login for studio/internal web app
+  -- username: editor_test
+  -- password: EditorPass123!
+  INSERT INTO users (username, email, display_name, hashed_password, role,
+                     email_verified, is_active, country_code)
+  VALUES (
+    'editor_test',
+    'editor@dev.myndral.ai',
+    'Editor Test',
+    crypt('EditorPass123!', gen_salt('bf', 12)),
+    'content_editor',
+    true,
+    true,
+    'US'
+  )
+  ON CONFLICT (username) DO UPDATE
+    SET email           = EXCLUDED.email,
+        display_name    = EXCLUDED.display_name,
+        hashed_password = EXCLUDED.hashed_password,
+        role            = EXCLUDED.role,
+        email_verified  = EXCLUDED.email_verified,
+        is_active       = EXCLUDED.is_active,
+        country_code    = EXCLUDED.country_code;
+  SELECT id INTO v_user_editor FROM users WHERE username = 'editor_test';
+
   -- Give Alice an active premium subscription
   INSERT INTO subscriptions (user_id, plan_id, status,
                              current_period_start, current_period_end)
@@ -168,6 +194,13 @@ BEGIN
                              current_period_start, current_period_end)
   SELECT v_user_admin, id, 'active', now(), now() + interval '365 days'
   FROM   subscription_plans WHERE slug = 'premium_annual'
+  ON CONFLICT DO NOTHING;
+
+  -- Internal editor gets free plan by default
+  INSERT INTO subscriptions (user_id, plan_id, status,
+                             current_period_start, current_period_end)
+  SELECT v_user_editor, id, 'active', now(), 'infinity'
+  FROM   subscription_plans WHERE slug = 'free'
   ON CONFLICT DO NOTHING;
 
   -- ══════════════════════════════════════════════════════════════════════════
@@ -715,7 +748,7 @@ BEGIN
 
   RAISE NOTICE 'Dev catalog seed complete.';
   RAISE NOTICE '  Artists created: Nyx Cascade, The Hollow Pattern, Lyra Voss, Fractured Meridian, Solenne';
-  RAISE NOTICE '  Users created:   system, alice_dev, bob_dev';
+  RAISE NOTICE '  Users created:   system, admin_test, editor_test, alice_dev, bob_dev';
 
 END $$;
 

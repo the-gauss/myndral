@@ -66,6 +66,12 @@ export const useUserPlaylists = () =>
     queryFn: () => catalog.getUserPlaylists(),
   })
 
+export const usePlaylists = (limit = 20, offset = 0) =>
+  useQuery({
+    queryKey: ['playlists', limit, offset],
+    queryFn: () => catalog.getPlaylists(limit, offset),
+  })
+
 export const usePlaylist = (id: string) =>
   useQuery({
     queryKey: ['playlist', id],

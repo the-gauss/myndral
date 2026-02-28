@@ -1,10 +1,14 @@
-import { Home, Library, Music, Search } from 'lucide-react'
+import { Album, Home, Library, ListMusic, Mic2, Music, Search } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import { useUserPlaylists } from '../../hooks/useCatalog'
 
 const navItems = [
-  { to: '/',        label: 'Home',    Icon: Home    },
-  { to: '/search',  label: 'Search',  Icon: Search  },
+  { to: '/',         label: 'Home',      Icon: Home },
+  { to: '/search',   label: 'Search',    Icon: Search },
+  { to: '/artists',  label: 'Artists',   Icon: Mic2 },
+  { to: '/albums',   label: 'Albums',    Icon: Album },
+  { to: '/songs',    label: 'Songs',     Icon: Music },
+  { to: '/playlists', label: 'Playlists', Icon: ListMusic },
 ]
 
 export default function Sidebar() {
@@ -12,8 +16,9 @@ export default function Sidebar() {
 
   return (
     <aside className="flex flex-col w-60 shrink-0 gap-1.5">
-      {/* Main nav */}
+      {/* Browse nav */}
       <nav className="rounded-lg bg-background/60 px-3 py-4">
+        <p className="px-3 pb-2 text-xs font-semibold tracking-wide uppercase text-muted-fg">Browse</p>
         <ul className="space-y-0.5">
           {navItems.map(({ to, label, Icon }) => (
             <li key={to}>

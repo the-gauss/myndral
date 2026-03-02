@@ -25,6 +25,8 @@ dependencies = [
     "httpx>=0.28.0",
     # Audio metadata parsing for internal tooling + streaming paths
     "mutagen>=1.47.0",
+    # Google Gemini / Lyria API client
+    "google-genai>=1.18.0",
 ]
 
 [project.optional-dependencies]

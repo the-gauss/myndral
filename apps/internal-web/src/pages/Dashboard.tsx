@@ -1,6 +1,7 @@
 import type { AxiosError } from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FormEvent, useMemo, useState } from 'react'
+import CreateMusicPanel from '../components/CreateMusicPanel'
 import {
   createAlbum,
   createArtist,
@@ -17,7 +18,7 @@ import {
 import { useAuthStore } from '../store/authStore'
 import type { AlbumType, AudioInspection, ContentStatus, TrackAudioFile } from '../types'
 
-type Tab = 'artists' | 'albums' | 'tracks'
+type Tab = 'artists' | 'albums' | 'tracks' | 'create_music'
 type StatusFilter = ContentStatus | 'all'
 
 const statusOptions: ContentStatus[] = ['draft', 'review', 'published', 'archived']
@@ -385,6 +386,7 @@ export default function Dashboard() {
   const toolbarTitle = useMemo(() => {
     if (tab === 'artists') return 'Artist Management'
     if (tab === 'albums') return 'Album Management'
+    if (tab === 'create_music') return 'Create Music'
     return 'Track Management'
   }, [tab])
 
@@ -412,6 +414,12 @@ export default function Dashboard() {
             className={`w-full rounded-md px-3 py-2 text-left text-sm ${tab === 'tracks' ? 'bg-accent text-accent-fg' : 'hover:bg-surface'}`}
           >
             Tracks
+          </button>
+          <button
+            onClick={() => setTab('create_music')}
+            className={`w-full rounded-md px-3 py-2 text-left text-sm ${tab === 'create_music' ? 'bg-accent text-accent-fg' : 'hover:bg-surface'}`}
+          >
+            Create Music
           </button>
         </nav>
 
@@ -939,6 +947,8 @@ export default function Dashboard() {
             </div>
           </section>
         )}
+
+        {tab === 'create_music' && <CreateMusicPanel />}
       </main>
     </div>
   )

@@ -1,11 +1,14 @@
 from datetime import UTC, date, datetime
+import json
 import re
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import FileResponse
+from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from myndral_api.auth_utils import (
@@ -15,11 +18,20 @@ from myndral_api.auth_utils import (
     to_public_user,
     verify_password,
 )
+from myndral_api.config import get_settings
 from myndral_api.db.session import get_db
 from myndral_api.media_utils import (
+    guess_audio_format,
+    guess_media_type,
     infer_local_audio_metadata,
     is_local_storage_url,
     is_remote_storage_url,
+    resolve_local_storage_path,
+)
+from myndral_api.music_generation import (
+    DEFAULT_LYRIA_MODEL,
+    MusicGenerationError,
+    generate_lyria_file,
 )
 
 router = APIRouter()
@@ -30,6 +42,27 @@ TrackArtistRole = Literal["primary", "featured", "producer", "remixer"]
 AudioQuality = Literal["low_128", "standard_256", "high_320", "lossless"]
 AudioFormat = Literal["mp3", "aac", "ogg", "flac", "opus"]
 InternalRole = Literal["content_editor", "content_reviewer", "admin"]
+LyriaScale = Literal[
+    "SCALE_UNSPECIFIED",
+    "C_MAJOR_A_MINOR",
+    "D_FLAT_MAJOR_B_FLAT_MINOR",
+    "D_MAJOR_B_MINOR",
+    "E_FLAT_MAJOR_C_MINOR",
+    "E_MAJOR_D_FLAT_MINOR",
+    "F_MAJOR_D_MINOR",
+    "G_FLAT_MAJOR_E_FLAT_MINOR",
+    "G_MAJOR_E_MINOR",
+    "A_FLAT_MAJOR_F_MINOR",
+    "A_MAJOR_G_FLAT_MINOR",
+    "B_FLAT_MAJOR_G_MINOR",
+    "B_MAJOR_A_FLAT_MINOR",
+]
+LyriaGenerationMode = Literal[
+    "MUSIC_GENERATION_MODE_UNSPECIFIED",
+    "QUALITY",
+    "DIVERSITY",
+    "VOCALIZATION",
+]
 
 INTERNAL_ROLES: set[str] = {"content_editor", "content_reviewer", "admin"}
 
@@ -151,6 +184,31 @@ class TrackUpdateRequest(CamelModel):
     replace_audio_files: bool = Field(default=False, alias="replaceAudioFiles")
 
 
+class MusicPromptInput(CamelModel):
+    text: str = Field(min_length=1, max_length=500)
+    weight: float = Field(default=1.0, ge=-5.0, le=5.0)
+
+
+class MusicGenerateRequest(CamelModel):
+    prompt: str = Field(min_length=1, max_length=500)
+    prompt_weight: float = Field(default=1.0, alias="promptWeight", ge=-5.0, le=5.0)
+    weighted_prompts: list[MusicPromptInput] = Field(default_factory=list, alias="weightedPrompts")
+    length_seconds: int = Field(default=20, alias="lengthSeconds", ge=5, le=240)
+    file_name: str | None = Field(default=None, alias="fileName", min_length=1, max_length=120)
+    model: str | None = Field(default=None, min_length=1, max_length=120)
+    temperature: float | None = Field(default=None, ge=0.0, le=3.0)
+    top_k: int | None = Field(default=None, alias="topK", ge=1, le=1000)
+    seed: int | None = Field(default=None, ge=0, le=2_147_483_647)
+    guidance: float | None = Field(default=None, ge=0.0, le=6.0)
+    bpm: int | None = Field(default=None, ge=60, le=200)
+    density: float | None = Field(default=None, ge=0.0, le=1.0)
+    brightness: float | None = Field(default=None, ge=0.0, le=1.0)
+    scale: LyriaScale | None = None
+    mute_bass: bool | None = Field(default=None, alias="muteBass")
+    mute_drums: bool | None = Field(default=None, alias="muteDrums")
+    only_bass_and_drums: bool | None = Field(default=None, alias="onlyBassAndDrums")
+    music_generation_mode: LyriaGenerationMode | None = Field(default=None, alias="musicGenerationMode")
+
 def _iso(value: Any) -> str | None:
     if value is None:
         return None
@@ -197,6 +255,90 @@ def _normalize_optional_text(value: str | None) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _to_weighted_prompts(payload: MusicGenerateRequest) -> list[genai_types.WeightedPrompt]:
+    prompts: list[genai_types.WeightedPrompt] = [
+        genai_types.WeightedPrompt(text=payload.prompt.strip(), weight=float(payload.prompt_weight))
+    ]
+    for prompt in payload.weighted_prompts:
+        prompts.append(
+            genai_types.WeightedPrompt(text=prompt.text.strip(), weight=float(prompt.weight))
+        )
+    return prompts
+
+
+def _to_music_generation_config(payload: MusicGenerateRequest) -> genai_types.LiveMusicGenerationConfig:
+    scale = genai_types.Scale[payload.scale] if payload.scale else None
+    mode = (
+        genai_types.MusicGenerationMode[payload.music_generation_mode]
+        if payload.music_generation_mode
+        else None
+    )
+    return genai_types.LiveMusicGenerationConfig(
+        temperature=payload.temperature,
+        top_k=payload.top_k,
+        seed=payload.seed,
+        guidance=payload.guidance,
+        bpm=payload.bpm,
+        density=payload.density,
+        brightness=payload.brightness,
+        scale=scale,
+        mute_bass=payload.mute_bass,
+        mute_drums=payload.mute_drums,
+        only_bass_and_drums=payload.only_bass_and_drums,
+        music_generation_mode=mode,
+    )
+
+
+def _build_music_input_params(payload: MusicGenerateRequest, model: str) -> dict[str, Any]:
+    weighted_prompts = [
+        {"text": payload.prompt.strip(), "weight": float(payload.prompt_weight)},
+        *[
+            {"text": item.text.strip(), "weight": float(item.weight)}
+            for item in payload.weighted_prompts
+        ],
+    ]
+    return {
+        "prompt": payload.prompt.strip(),
+        "promptWeight": float(payload.prompt_weight),
+        "weightedPrompts": weighted_prompts,
+        "lengthSeconds": int(payload.length_seconds),
+        "fileName": _normalize_optional_text(payload.file_name),
+        "model": model,
+        "temperature": payload.temperature,
+        "topK": payload.top_k,
+        "seed": payload.seed,
+        "guidance": payload.guidance,
+        "bpm": payload.bpm,
+        "density": payload.density,
+        "brightness": payload.brightness,
+        "scale": payload.scale,
+        "muteBass": payload.mute_bass,
+        "muteDrums": payload.mute_drums,
+        "onlyBassAndDrums": payload.only_bass_and_drums,
+        "musicGenerationMode": payload.music_generation_mode,
+    }
+
+
+def _serialize_music_job(row: Any) -> dict[str, Any]:
+    input_params = row["input_params"] or {}
+    output_metadata = row["output_metadata"] or {}
+    return {
+        "id": row["id"],
+        "status": row["status"],
+        "prompt": input_params.get("prompt"),
+        "lengthSeconds": input_params.get("lengthSeconds"),
+        "model": input_params.get("model"),
+        "inputParams": input_params,
+        "outputMetadata": output_metadata,
+        "outputStorageUrl": output_metadata.get("storageUrl"),
+        "errorMessage": row["error_message"],
+        "createdAt": _iso(row["created_at"]),
+        "startedAt": _iso(row["started_at"]),
+        "completedAt": _iso(row["completed_at"]),
+        "failedAt": _iso(row["failed_at"]),
+    }
 
 
 def _enrich_audio_files(audio_files: list[TrackAudioInput]) -> int | None:
@@ -771,6 +913,196 @@ async def inspect_audio(
         "fileSizeBytes": inferred.get("file_size_bytes"),
         "checksumSha256": inferred.get("checksum_sha256"),
     }
+
+
+@router.post("/music/generate", summary="Generate music with Lyria and save to data/")
+async def generate_music(
+    payload: MusicGenerateRequest,
+    current_user: dict = Depends(_require_internal_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    settings = get_settings()
+    api_key = settings.lyria_3_api_key.strip()
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LYRIA_3_API_KEY is not configured on the API server.",
+        )
+
+    model_name = _normalize_optional_text(payload.model) or settings.lyria_model or DEFAULT_LYRIA_MODEL
+    weighted_prompts = _to_weighted_prompts(payload)
+    config = _to_music_generation_config(payload)
+    input_params = _build_music_input_params(payload, model_name)
+
+    try:
+        insert_result = await db.execute(
+            text(
+                """
+INSERT INTO generation_jobs (job_type, status, input_params, created_by, started_at)
+VALUES ('music_generation', 'in_progress', CAST(:input_params AS jsonb), CAST(:created_by AS uuid), now())
+RETURNING id::text
+"""
+            ),
+            {
+                "input_params": json.dumps(input_params),
+                "created_by": current_user["id"],
+            },
+        )
+    except DBAPIError as exc:
+        await db.rollback()
+        if "invalid input value for enum generation_job_type" in str(exc):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=(
+                    "Database schema is missing 'music_generation' job type. "
+                    "Apply migration db/migrations/20260302_01_add_music_generation_job_type.sql."
+                ),
+            ) from exc
+        raise
+    job_id = str(insert_result.scalar_one())
+    await db.commit()
+
+    try:
+        generated = await generate_lyria_file(
+            api_key=api_key,
+            model=model_name,
+            weighted_prompts=weighted_prompts,
+            config=config,
+            length_seconds=payload.length_seconds,
+            output_subdir=settings.lyria_output_subdir,
+            filename_hint=payload.file_name or payload.prompt,
+        )
+    except MusicGenerationError as exc:
+        await db.execute(
+            text(
+                """
+UPDATE generation_jobs
+SET status = 'failed',
+    failed_at = now(),
+    error_message = :error_message
+WHERE id = CAST(:job_id AS uuid)
+"""
+            ),
+            {
+                "job_id": job_id,
+                "error_message": str(exc)[:2000],
+            },
+        )
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    output_metadata = {
+        "storageUrl": generated.storage_url,
+        "absolutePath": str(generated.absolute_path),
+        "mimeType": generated.mime_type,
+        "sampleRateHz": generated.sample_rate_hz,
+        "channels": generated.channels,
+        "fileSizeBytes": generated.file_size_bytes,
+        "durationMs": generated.duration_ms,
+        "filteredPromptText": generated.filtered_prompt_text,
+        "filteredPromptReason": generated.filtered_prompt_reason,
+    }
+
+    await db.execute(
+        text(
+            """
+UPDATE generation_jobs
+SET status = 'completed',
+    completed_at = now(),
+    output_metadata = CAST(:output_metadata AS jsonb)
+WHERE id = CAST(:job_id AS uuid)
+"""
+        ),
+        {"job_id": job_id, "output_metadata": json.dumps(output_metadata)},
+    )
+    await db.commit()
+
+    result = await db.execute(
+        text(
+            """
+SELECT
+  id::text AS id,
+  status::text AS status,
+  input_params,
+  output_metadata,
+  error_message,
+  created_at,
+  started_at,
+  completed_at,
+  failed_at
+FROM generation_jobs
+WHERE id = CAST(:job_id AS uuid)
+"""
+        ),
+        {"job_id": job_id},
+    )
+    row = result.mappings().first()
+    if row is None:
+        raise HTTPException(status_code=500, detail="Generation succeeded but job could not be loaded.")
+    return _serialize_music_job(row)
+
+
+@router.get("/music/jobs", summary="List generated music jobs")
+async def list_music_jobs(
+    limit: int = Query(default=25, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    _: dict = Depends(_require_internal_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    items_result = await db.execute(
+        text(
+            """
+SELECT
+  id::text AS id,
+  status::text AS status,
+  input_params,
+  output_metadata,
+  error_message,
+  created_at,
+  started_at,
+  completed_at,
+  failed_at
+FROM generation_jobs
+WHERE job_type::text = 'music_generation'
+ORDER BY created_at DESC
+LIMIT :limit OFFSET :offset
+"""
+        ),
+        {"limit": limit, "offset": offset},
+    )
+    count_result = await db.execute(
+        text("SELECT count(*) AS total FROM generation_jobs WHERE job_type::text = 'music_generation'")
+    )
+    return {
+        "items": [_serialize_music_job(row) for row in items_result.mappings().all()],
+        "total": int(count_result.scalar_one()),
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.get("/music/file", summary="Read a generated local audio file")
+async def read_generated_music_file(
+    storage_url: str = Query(alias="storageUrl", min_length=1),
+    _: dict = Depends(_require_internal_user),
+) -> FileResponse:
+    normalized = storage_url.strip()
+    if not is_local_storage_url(normalized):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="storageUrl must point to a local data/* file.",
+        )
+
+    path = resolve_local_storage_path(normalized)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Generated file not found in data/ folder.")
+
+    fallback_format = guess_audio_format(path.name)
+    return FileResponse(
+        path=path,
+        media_type=guess_media_type(path, fallback_format=fallback_format),
+        filename=path.name,
+    )
 
 
 @router.get("/artists", summary="List artists for internal management")

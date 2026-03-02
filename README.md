@@ -82,6 +82,27 @@ npm run dev
 
 The internal studio will be available at `http://127.0.0.1:5174`.
 
+### 6. Enable Lyria Create Music (optional)
+
+Set these in `.env`:
+
+```bash
+LYRIA_3_API_KEY=your_api_key
+# optional overrides
+LYRIA_MODEL=models/lyria-realtime-exp
+LYRIA_OUTPUT_SUBDIR=generated/music
+```
+
+Apply migration for generation job type:
+
+```bash
+PGPASSWORD="$POSTGRES_PASSWORD" \
+  psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -f db/migrations/20260302_01_add_music_generation_job_type.sql
+```
+
+Then use **Internal Studio → Create Music** to generate audio into `data/generated/music/`.
+
 ## Dev login account
 
 After applying schema + seeds, you can log in with:

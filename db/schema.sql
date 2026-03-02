@@ -114,7 +114,7 @@ CREATE TYPE content_subject_type AS ENUM (
 
 -- AI content generation job types
 CREATE TYPE generation_job_type AS ENUM (
-  'artist', 'album', 'track', 'lyrics', 'cover_art', 'artist_image'
+  'artist', 'album', 'track', 'lyrics', 'cover_art', 'artist_image', 'music_generation'
 );
 
 CREATE TYPE generation_job_status AS ENUM (
@@ -740,7 +740,7 @@ CREATE TABLE generation_jobs (
   status          generation_job_status NOT NULL DEFAULT 'pending',
   -- Linked catalog record (populated on job completion)
   subject_id      UUID,
-  subject_type    TEXT,  -- 'artist' | 'album' | 'track' | 'lyrics' | 'cover_art'
+  subject_type    TEXT,  -- 'artist' | 'album' | 'track' | 'lyrics' | 'cover_art' | 'music_generation'
   -- Agent inputs / outputs
   input_params    JSONB                 NOT NULL DEFAULT '{}',
   output_metadata JSONB,  -- CDN URLs, model version, token usage, generation duration, etc.
@@ -755,7 +755,7 @@ CREATE TABLE generation_jobs (
 
   CONSTRAINT ck_gen_subject_type CHECK (
     subject_type IS NULL OR subject_type IN (
-      'artist', 'album', 'track', 'lyrics', 'cover_art', 'artist_image'
+      'artist', 'album', 'track', 'lyrics', 'cover_art', 'artist_image', 'music_generation'
     )
   )
 );

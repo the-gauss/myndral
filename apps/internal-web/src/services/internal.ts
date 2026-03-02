@@ -4,6 +4,8 @@ import type {
   AlbumItem,
   ArtistItem,
   Genre,
+  MusicGenerateRequest,
+  MusicGenerationJob,
   LoginResponse,
   Paginated,
   TrackItem,
@@ -138,3 +140,15 @@ export const updateTrack = (trackId: string, payload: Partial<{
   }>
   replaceAudioFiles: boolean
 }>) => api.patch<TrackItem>(`/v1/internal/tracks/${trackId}`, payload).then((r) => r.data)
+
+export const generateMusic = (payload: MusicGenerateRequest) =>
+  api.post<MusicGenerationJob>('/v1/internal/music/generate', payload).then((r) => r.data)
+
+export const listMusicJobs = (params?: { limit?: number; offset?: number }) =>
+  api.get<Paginated<MusicGenerationJob>>('/v1/internal/music/jobs', { params }).then((r) => r.data)
+
+export const fetchGeneratedMusicFile = (storageUrl: string) =>
+  api.get<Blob>('/v1/internal/music/file', {
+    params: { storageUrl },
+    responseType: 'blob',
+  }).then((r) => r.data)

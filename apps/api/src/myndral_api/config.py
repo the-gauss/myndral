@@ -29,6 +29,9 @@ class Settings(BaseSettings):
 
     # AI
     anthropic_api_key: str = ""
+    lyria_3_api_key: str = ""
+    lyria_model: str = "models/lyria-realtime-exp"
+    lyria_output_subdir: str = "generated/music"
 
     # CORS — comma-separated origins
     cors_origins: str = (

@@ -82,15 +82,16 @@ npm run dev
 
 The internal studio will be available at `http://127.0.0.1:5174`.
 
-### 6. Enable Lyria Create Music (optional)
+### 6. Enable ElevenLabs Song Creation (optional)
 
 Set these in `.env`:
 
 ```bash
-LYRIA_3_API_KEY=your_api_key
+ELEVENLABS_API_KEY=your_api_key
 # optional overrides
-LYRIA_MODEL=models/lyria-realtime-exp
-LYRIA_OUTPUT_SUBDIR=generated/music
+ELEVENLABS_MODEL=music_v1
+ELEVENLABS_OUTPUT_SUBDIR=generated/music
+ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128
 ```
 
 Apply migration for generation job type:
@@ -101,7 +102,8 @@ PGPASSWORD="$POSTGRES_PASSWORD" \
   -f db/migrations/20260302_01_add_music_generation_job_type.sql
 ```
 
-Then use **Internal Studio → Create Music** to generate audio into `data/generated/music/`.
+Then use **Internal Studio → Create Songs** to generate full songs into `data/generated/music/`.
+The creator defaults to vocals and includes an optional **Lyrics** tab for custom words.
 
 ## Dev login account
 

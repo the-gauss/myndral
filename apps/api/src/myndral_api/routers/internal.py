@@ -5,7 +5,6 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
-from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
@@ -29,9 +28,13 @@ from myndral_api.media_utils import (
     resolve_local_storage_path,
 )
 from myndral_api.music_generation import (
-    DEFAULT_LYRIA_MODEL,
+    DEFAULT_ELEVENLABS_MODEL,
+    DEFAULT_OUTPUT_FORMAT,
     MusicGenerationError,
-    generate_lyria_file,
+    WeightedPromptInput,
+    build_composition_plan,
+    build_song_prompt,
+    generate_song_file,
 )
 
 router = APIRouter()
@@ -42,7 +45,7 @@ TrackArtistRole = Literal["primary", "featured", "producer", "remixer"]
 AudioQuality = Literal["low_128", "standard_256", "high_320", "lossless"]
 AudioFormat = Literal["mp3", "aac", "ogg", "flac", "opus"]
 InternalRole = Literal["content_editor", "content_reviewer", "admin"]
-LyriaScale = Literal[
+LegacyMusicScale = Literal[
     "SCALE_UNSPECIFIED",
     "C_MAJOR_A_MINOR",
     "D_FLAT_MAJOR_B_FLAT_MINOR",
@@ -57,11 +60,34 @@ LyriaScale = Literal[
     "B_FLAT_MAJOR_G_MINOR",
     "B_MAJOR_A_FLAT_MINOR",
 ]
-LyriaGenerationMode = Literal[
+LegacyMusicGenerationMode = Literal[
     "MUSIC_GENERATION_MODE_UNSPECIFIED",
     "QUALITY",
     "DIVERSITY",
     "VOCALIZATION",
+]
+ElevenLabsOutputFormat = Literal[
+    "mp3_22050_32",
+    "mp3_24000_48",
+    "mp3_44100_32",
+    "mp3_44100_64",
+    "mp3_44100_96",
+    "mp3_44100_128",
+    "mp3_44100_192",
+    "pcm_8000",
+    "pcm_16000",
+    "pcm_22050",
+    "pcm_24000",
+    "pcm_32000",
+    "pcm_44100",
+    "pcm_48000",
+    "ulaw_8000",
+    "alaw_8000",
+    "opus_48000_32",
+    "opus_48000_64",
+    "opus_48000_96",
+    "opus_48000_128",
+    "opus_48000_192",
 ]
 
 INTERNAL_ROLES: set[str] = {"content_editor", "content_reviewer", "admin"}
@@ -190,27 +216,34 @@ class MusicPromptInput(CamelModel):
 
 
 class MusicGenerateRequest(CamelModel):
-    prompt: str = Field(min_length=1, max_length=500)
+    prompt: str = Field(min_length=1, max_length=2000)
     prompt_weight: float = Field(default=1.0, alias="promptWeight", ge=-5.0, le=5.0)
     weighted_prompts: list[MusicPromptInput] = Field(default_factory=list, alias="weightedPrompts")
-    length_seconds: int = Field(default=20, alias="lengthSeconds", ge=5, le=240)
+    length_seconds: int = Field(default=20, alias="lengthSeconds", ge=3, le=600)
     file_name: str | None = Field(default=None, alias="fileName", min_length=1, max_length=120)
-    model: str | None = Field(default=None, min_length=1, max_length=120)
+    model: str | None = Field(default=None, min_length=1, max_length=32)
     temperature: float | None = Field(default=None, ge=0.0, le=3.0)
     top_k: int | None = Field(default=None, alias="topK", ge=1, le=1000)
     seed: int | None = Field(default=None, ge=0, le=2_147_483_647)
     guidance: float | None = Field(default=None, ge=0.0, le=6.0)
+    negative_prompt: str | None = Field(default=None, alias="negativePrompt", max_length=2000)
+    force_instrumental: bool = Field(default=False, alias="forceInstrumental")
+    output_format: ElevenLabsOutputFormat | None = Field(default=None, alias="outputFormat")
+    lyrics: str | None = Field(default=None, max_length=12000)
+    lyrics_language: str = Field(default="en", alias="lyricsLanguage", min_length=2, max_length=8)
+    with_timestamps: bool = Field(default=False, alias="withTimestamps")
     bpm: int | None = Field(default=None, ge=60, le=200)
     density: float | None = Field(default=None, ge=0.0, le=1.0)
     brightness: float | None = Field(default=None, ge=0.0, le=1.0)
-    scale: LyriaScale | None = None
+    scale: LegacyMusicScale | None = None
     mute_bass: bool | None = Field(default=None, alias="muteBass")
     mute_drums: bool | None = Field(default=None, alias="muteDrums")
     only_bass_and_drums: bool | None = Field(default=None, alias="onlyBassAndDrums")
-    music_generation_mode: LyriaGenerationMode | None = Field(
+    music_generation_mode: LegacyMusicGenerationMode | None = Field(
         default=None,
         alias="musicGenerationMode",
     )
+
 
 def _iso(value: Any) -> str | None:
     if value is None:
@@ -260,43 +293,122 @@ def _normalize_optional_text(value: str | None) -> str | None:
     return stripped or None
 
 
-def _to_weighted_prompts(payload: MusicGenerateRequest) -> list[genai_types.WeightedPrompt]:
-    prompts: list[genai_types.WeightedPrompt] = [
-        genai_types.WeightedPrompt(text=payload.prompt.strip(), weight=float(payload.prompt_weight))
+def _to_weighted_prompts(payload: MusicGenerateRequest) -> list[WeightedPromptInput]:
+    return [
+        WeightedPromptInput(text=item.text.strip(), weight=float(item.weight))
+        for item in payload.weighted_prompts
+        if item.text.strip()
     ]
-    for prompt in payload.weighted_prompts:
-        prompts.append(
-            genai_types.WeightedPrompt(text=prompt.text.strip(), weight=float(prompt.weight))
-        )
-    return prompts
 
 
-def _to_music_generation_config(
+def _humanize_legacy_scale(value: LegacyMusicScale) -> str:
+    if value == "SCALE_UNSPECIFIED":
+        return "an unspecified key"
+    return (
+        value.replace("_", " ")
+        .title()
+        .replace(" Flat ", " flat ")
+        .replace(" Minor", " minor")
+        .replace(" Major", " major")
+    )
+
+
+def _legacy_prompt_hints(payload: MusicGenerateRequest) -> tuple[list[str], str | None]:
+    hints: list[str] = []
+    negative_parts: list[str] = []
+
+    if payload.bpm is not None:
+        hints.append(f"Tempo around {payload.bpm} BPM")
+    if payload.scale and payload.scale != "SCALE_UNSPECIFIED":
+        hints.append(f"Center the harmony around {_humanize_legacy_scale(payload.scale)}")
+    if payload.brightness is not None:
+        if payload.brightness >= 0.67:
+            hints.append("Use a bright, glossy tone")
+        elif payload.brightness <= 0.33:
+            hints.append("Use a darker, warmer tone")
+    if payload.density is not None:
+        if payload.density >= 0.67:
+            hints.append("Keep the arrangement dense and full")
+        elif payload.density <= 0.33:
+            hints.append("Keep the arrangement sparse and open")
+    if payload.only_bass_and_drums:
+        hints.append("Bass and drums should dominate the arrangement")
+    else:
+        if payload.mute_bass:
+            negative_parts.append("bass")
+        if payload.mute_drums:
+            negative_parts.append("drums and percussion")
+    if payload.music_generation_mode == "VOCALIZATION" and not payload.force_instrumental:
+        hints.append("Prioritize expressive sung vocals")
+    elif payload.music_generation_mode == "QUALITY":
+        hints.append("Aim for polished studio-quality production")
+    elif payload.music_generation_mode == "DIVERSITY":
+        hints.append("Let the arrangement evolve and vary across the song")
+    if payload.temperature is not None:
+        if payload.temperature >= 1.4:
+            hints.append("Take bold creative risks")
+        elif payload.temperature <= 0.6:
+            hints.append("Keep the composition focused and controlled")
+    if payload.guidance is not None and payload.guidance >= 4.0:
+        hints.append("Keep the song tightly aligned to the prompt")
+
+    negative_prompt = _normalize_optional_text(payload.negative_prompt)
+    if negative_parts:
+        muted = ", ".join(negative_parts)
+        negative_prompt = f"{negative_prompt}; {muted}" if negative_prompt else muted
+    return hints, negative_prompt
+
+
+def _build_music_generation_inputs(
     payload: MusicGenerateRequest,
-) -> genai_types.LiveMusicGenerationConfig:
-    scale = genai_types.Scale[payload.scale] if payload.scale else None
-    mode = (
-        genai_types.MusicGenerationMode[payload.music_generation_mode]
-        if payload.music_generation_mode
-        else None
+    model: str,
+    default_output_format: str,
+) -> tuple[str | None, Any | None, dict[str, Any]]:
+    extra_hints, negative_prompt = _legacy_prompt_hints(payload)
+    weighted_prompts = _to_weighted_prompts(payload)
+    lyrics = _normalize_optional_text(payload.lyrics)
+    prompt_text = build_song_prompt(
+        prompt=payload.prompt.strip(),
+        prompt_weight=float(payload.prompt_weight),
+        weighted_prompts=weighted_prompts,
+        negative_prompt=negative_prompt,
+        prefer_vocals=not payload.force_instrumental and lyrics is None,
+        extra_hints=extra_hints,
     )
-    return genai_types.LiveMusicGenerationConfig(
-        temperature=payload.temperature,
-        top_k=payload.top_k,
-        seed=payload.seed,
-        guidance=payload.guidance,
-        bpm=payload.bpm,
-        density=payload.density,
-        brightness=payload.brightness,
-        scale=scale,
-        mute_bass=payload.mute_bass,
-        mute_drums=payload.mute_drums,
-        only_bass_and_drums=payload.only_bass_and_drums,
-        music_generation_mode=mode,
+    composition_plan = None
+    request_prompt: str | None = prompt_text
+    if lyrics:
+        composition_plan = build_composition_plan(
+            prompt=prompt_text,
+            lyrics=lyrics,
+            length_seconds=payload.length_seconds,
+            negative_prompt=negative_prompt,
+            extra_hints=extra_hints,
+        )
+        request_prompt = None
+
+    input_params = _build_music_input_params(
+        payload=payload,
+        model=model,
+        output_format=payload.output_format or default_output_format,
+        resolved_prompt=prompt_text,
+        negative_prompt=negative_prompt,
+        extra_hints=extra_hints,
+        has_custom_lyrics=lyrics is not None,
     )
+    return request_prompt, composition_plan, input_params
 
 
-def _build_music_input_params(payload: MusicGenerateRequest, model: str) -> dict[str, Any]:
+def _build_music_input_params(
+    payload: MusicGenerateRequest,
+    *,
+    model: str,
+    output_format: str,
+    resolved_prompt: str,
+    negative_prompt: str | None,
+    extra_hints: list[str],
+    has_custom_lyrics: bool,
+) -> dict[str, Any]:
     weighted_prompts = [
         {"text": payload.prompt.strip(), "weight": float(payload.prompt_weight)},
         *[
@@ -308,9 +420,18 @@ def _build_music_input_params(payload: MusicGenerateRequest, model: str) -> dict
         "prompt": payload.prompt.strip(),
         "promptWeight": float(payload.prompt_weight),
         "weightedPrompts": weighted_prompts,
+        "resolvedPrompt": resolved_prompt,
+        "negativePrompt": negative_prompt,
         "lengthSeconds": int(payload.length_seconds),
         "fileName": _normalize_optional_text(payload.file_name),
         "model": model,
+        "outputFormat": output_format,
+        "forceInstrumental": bool(payload.force_instrumental),
+        "lyrics": _normalize_optional_text(payload.lyrics),
+        "lyricsLanguage": payload.lyrics_language,
+        "withTimestamps": bool(payload.with_timestamps),
+        "hasCustomLyrics": has_custom_lyrics,
+        "provider": "elevenlabs",
         "temperature": payload.temperature,
         "topK": payload.top_k,
         "seed": payload.seed,
@@ -323,6 +444,7 @@ def _build_music_input_params(payload: MusicGenerateRequest, model: str) -> dict
         "muteDrums": payload.mute_drums,
         "onlyBassAndDrums": payload.only_bass_and_drums,
         "musicGenerationMode": payload.music_generation_mode,
+        "extraHints": extra_hints,
     }
 
 
@@ -945,28 +1067,30 @@ async def inspect_audio(
     }
 
 
-@router.post("/music/generate", summary="Generate music with Lyria and save to data/")
+@router.post("/music/generate", summary="Generate a song with ElevenLabs and save it to data/")
 async def generate_music(
     payload: MusicGenerateRequest,
     current_user: dict = Depends(_require_internal_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     settings = get_settings()
-    api_key = settings.lyria_3_api_key.strip()
+    api_key = settings.elevenlabs_api_key.strip()
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="LYRIA_3_API_KEY is not configured on the API server.",
+            detail="ELEVENLABS_API_KEY is not configured on the API server.",
         )
 
     model_name = (
         _normalize_optional_text(payload.model)
-        or settings.lyria_model
-        or DEFAULT_LYRIA_MODEL
+        or settings.elevenlabs_model
+        or DEFAULT_ELEVENLABS_MODEL
     )
-    weighted_prompts = _to_weighted_prompts(payload)
-    config = _to_music_generation_config(payload)
-    input_params = _build_music_input_params(payload, model_name)
+    request_prompt, composition_plan, input_params = _build_music_generation_inputs(
+        payload,
+        model_name,
+        settings.elevenlabs_output_format or DEFAULT_OUTPUT_FORMAT,
+    )
 
     try:
         insert_result = await db.execute(
@@ -1003,14 +1127,20 @@ RETURNING id::text
     await db.commit()
 
     try:
-        generated = await generate_lyria_file(
+        generated = await generate_song_file(
             api_key=api_key,
             model=model_name,
-            weighted_prompts=weighted_prompts,
-            config=config,
+            prompt=request_prompt,
+            composition_plan=composition_plan,
             length_seconds=payload.length_seconds,
-            output_subdir=settings.lyria_output_subdir,
+            output_format=payload.output_format
+            or settings.elevenlabs_output_format
+            or DEFAULT_OUTPUT_FORMAT,
+            with_timestamps=payload.with_timestamps,
+            force_instrumental=payload.force_instrumental,
+            output_subdir=settings.elevenlabs_output_subdir,
             filename_hint=payload.file_name or payload.prompt,
+            seed=payload.seed,
         )
     except MusicGenerationError as exc:
         await db.execute(
@@ -1039,8 +1169,12 @@ WHERE id = CAST(:job_id AS uuid)
         "channels": generated.channels,
         "fileSizeBytes": generated.file_size_bytes,
         "durationMs": generated.duration_ms,
-        "filteredPromptText": generated.filtered_prompt_text,
-        "filteredPromptReason": generated.filtered_prompt_reason,
+        "outputFormat": generated.output_format,
+        "songId": generated.song_id,
+        "compositionPlan": generated.composition_plan,
+        "songMetadata": generated.song_metadata,
+        "wordsTimestamps": generated.words_timestamps,
+        "lyrics": generated.lyrics,
     }
 
     await db.execute(

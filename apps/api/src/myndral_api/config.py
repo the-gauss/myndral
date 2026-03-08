@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -38,9 +39,22 @@ class Settings(BaseSettings):
 
     # AI
     anthropic_api_key: str = ""
-    lyria_3_api_key: str = ""
-    lyria_model: str = "models/lyria-realtime-exp"
-    lyria_output_subdir: str = "generated/music"
+    elevenlabs_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("ELEVENLABS_API_KEY", "LYRIA_3_API_KEY"),
+    )
+    elevenlabs_model: str = Field(
+        default="music_v1",
+        validation_alias=AliasChoices("ELEVENLABS_MODEL", "LYRIA_MODEL"),
+    )
+    elevenlabs_output_subdir: str = Field(
+        default="generated/music",
+        validation_alias=AliasChoices("ELEVENLABS_OUTPUT_SUBDIR", "LYRIA_OUTPUT_SUBDIR"),
+    )
+    elevenlabs_output_format: str = Field(
+        default="mp3_44100_128",
+        validation_alias=AliasChoices("ELEVENLABS_OUTPUT_FORMAT"),
+    )
 
     # CORS — comma-separated origins
     cors_origins: str = (

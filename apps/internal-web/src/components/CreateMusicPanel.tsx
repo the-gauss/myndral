@@ -6,30 +6,9 @@ import {
   generateMusic,
   listMusicJobs,
 } from '../services/internal'
-import type { LyriaGenerationMode, LyriaScale, MusicGenerationJob } from '../types'
+import type { MusicGenerationJob } from '../types'
 
-const SCALE_OPTIONS: LyriaScale[] = [
-  'SCALE_UNSPECIFIED',
-  'C_MAJOR_A_MINOR',
-  'D_FLAT_MAJOR_B_FLAT_MINOR',
-  'D_MAJOR_B_MINOR',
-  'E_FLAT_MAJOR_C_MINOR',
-  'E_MAJOR_D_FLAT_MINOR',
-  'F_MAJOR_D_MINOR',
-  'G_FLAT_MAJOR_E_FLAT_MINOR',
-  'G_MAJOR_E_MINOR',
-  'A_FLAT_MAJOR_F_MINOR',
-  'A_MAJOR_G_FLAT_MINOR',
-  'B_FLAT_MAJOR_G_MINOR',
-  'B_MAJOR_A_FLAT_MINOR',
-]
-
-const MODE_OPTIONS: LyriaGenerationMode[] = [
-  'QUALITY',
-  'DIVERSITY',
-  'VOCALIZATION',
-  'MUSIC_GENERATION_MODE_UNSPECIFIED',
-]
+type CreatorTab = 'song' | 'lyrics'
 
 function parseOptionalNumber(raw: string): number | undefined {
   const value = Number(raw)
@@ -76,29 +55,35 @@ function formatFileSize(job: MusicGenerationJob): string {
   return `${amount.toFixed(1)} ${units[unitIndex]}`
 }
 
+function getSongTitle(job: MusicGenerationJob): string | null {
+  const metadata = job.outputMetadata?.songMetadata
+  if (!metadata || typeof metadata !== 'object') return null
+  const title = (metadata as Record<string, unknown>).title
+  return typeof title === 'string' && title.trim() ? title.trim() : null
+}
+
+function getLyrics(job: MusicGenerationJob): string | null {
+  const lyrics = job.outputMetadata?.lyrics
+  return typeof lyrics === 'string' && lyrics.trim() ? lyrics.trim() : null
+}
+
 export default function CreateMusicPanel() {
   const queryClient = useQueryClient()
+  const [activeTab, setActiveTab] = useState<CreatorTab>('song')
   const [prompt, setPrompt] = useState('')
-  const [promptWeight, setPromptWeight] = useState('1')
-  const [secondaryPrompt, setSecondaryPrompt] = useState('')
-  const [secondaryWeight, setSecondaryWeight] = useState('0.7')
-  const [lengthSeconds, setLengthSeconds] = useState('20')
+  const [styleNote, setStyleNote] = useState('')
+  const [negativePrompt, setNegativePrompt] = useState('')
+  const [lengthSeconds, setLengthSeconds] = useState('150')
   const [fileName, setFileName] = useState('')
-  const [model, setModel] = useState('models/lyria-realtime-exp')
-  const [temperature, setTemperature] = useState('1.0')
-  const [topK, setTopK] = useState('40')
   const [seed, setSeed] = useState('')
-  const [guidance, setGuidance] = useState('4.0')
-  const [bpm, setBpm] = useState('120')
-  const [density, setDensity] = useState('0.5')
-  const [brightness, setBrightness] = useState('0.5')
-  const [scale, setScale] = useState<LyriaScale>('SCALE_UNSPECIFIED')
-  const [mode, setMode] = useState<LyriaGenerationMode>('QUALITY')
-  const [muteBass, setMuteBass] = useState(false)
-  const [muteDrums, setMuteDrums] = useState(false)
-  const [onlyBassAndDrums, setOnlyBassAndDrums] = useState(false)
+  const [forceInstrumental, setForceInstrumental] = useState(false)
+  const [useCustomLyrics, setUseCustomLyrics] = useState(false)
+  const [lyrics, setLyrics] = useState('')
+  const [withTimestamps, setWithTimestamps] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewJobId, setPreviewJobId] = useState<string | null>(null)
+  const [previewTitle, setPreviewTitle] = useState<string | null>(null)
+  const [previewLyrics, setPreviewLyrics] = useState<string | null>(null)
 
   const jobs = useQuery({
     queryKey: ['music-jobs'],
@@ -113,22 +98,36 @@ export default function CreateMusicPanel() {
   })
 
   const previewMutation = useMutation({
-    mutationFn: async ({ jobId, storageUrl }: { jobId: string; storageUrl: string }) => {
-      const blob = await fetchGeneratedMusicFile(storageUrl)
-      return { blob, jobId }
+    mutationFn: async (job: MusicGenerationJob) => {
+      const blob = await fetchGeneratedMusicFile(job.outputStorageUrl!)
+      return {
+        blob,
+        jobId: job.id,
+        title: getSongTitle(job),
+        lyrics: getLyrics(job),
+      }
     },
-    onSuccess: ({ blob, jobId }) => {
+    onSuccess: ({ blob, jobId, title, lyrics }) => {
       setPreviewUrl((current) => {
         if (current) URL.revokeObjectURL(current)
         return URL.createObjectURL(blob)
       })
       setPreviewJobId(jobId)
+      setPreviewTitle(title)
+      setPreviewLyrics(lyrics)
     },
   })
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
   }, [previewUrl])
+
+  useEffect(() => {
+    if (forceInstrumental) {
+      setUseCustomLyrics(false)
+      setActiveTab('song')
+    }
+  }, [forceInstrumental])
 
   const controlsEnabled = useMemo(
     () => !createMusicMutation.isPending,
@@ -138,144 +137,202 @@ export default function CreateMusicPanel() {
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const weightedPrompts = secondaryPrompt.trim()
-      ? [{
-        text: secondaryPrompt.trim(),
-        weight: parseOptionalNumber(secondaryWeight) ?? 0.7,
-      }]
-      : []
+    const weightedPrompts = styleNote.trim()
+      ? [{ text: styleNote.trim(), weight: 0.85 }]
+      : undefined
 
     createMusicMutation.mutate({
       prompt: prompt.trim(),
-      promptWeight: parseOptionalNumber(promptWeight) ?? 1.0,
+      promptWeight: parseOptionalNumber('1') ?? 1,
       weightedPrompts,
-      lengthSeconds: parseOptionalInt(lengthSeconds) ?? 20,
+      negativePrompt: negativePrompt.trim() || undefined,
+      lengthSeconds: parseOptionalInt(lengthSeconds) ?? 150,
       fileName: fileName.trim() || undefined,
-      model: model.trim() || undefined,
-      temperature: parseOptionalNumber(temperature),
-      topK: parseOptionalInt(topK),
       seed: parseOptionalInt(seed),
-      guidance: parseOptionalNumber(guidance),
-      bpm: parseOptionalInt(bpm),
-      density: parseOptionalNumber(density),
-      brightness: parseOptionalNumber(brightness),
-      scale,
-      muteBass,
-      muteDrums,
-      onlyBassAndDrums,
-      musicGenerationMode: mode,
+      forceInstrumental,
+      lyrics: useCustomLyrics && !forceInstrumental ? lyrics.trim() || undefined : undefined,
+      lyricsLanguage: 'en',
+      withTimestamps,
+      outputFormat: 'mp3_44100_128',
     })
   }
 
   return (
     <section className="space-y-4">
       <div className="rounded-lg border border-border bg-surface/40 p-4">
-        <h3 className="text-lg font-semibold">Create Music (Lyria)</h3>
+        <h3 className="text-lg font-semibold">Create Song (ElevenLabs)</h3>
         <p className="mt-1 text-sm text-muted-fg">
-          Generates a local WAV file into <code>data/generated/music/</code>. This is separate from Add Track.
+          Generates a local MP3 into <code>data/generated/music/</code> with full-song vocals by default. This remains separate from Add Track.
         </p>
       </div>
 
       <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface/40 p-4 lg:grid-cols-3">
-        <label className="text-sm lg:col-span-3">
-          Prompt
-          <textarea
-            className="mt-1 min-h-24 w-full rounded-md border border-border bg-background px-3 py-2"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Ambient cinematic track, warm analog pads, gentle pulse..."
-            required
+        <div className="flex flex-wrap gap-2 lg:col-span-3">
+          <button
+            type="button"
+            className={`rounded-md px-3 py-2 text-sm ${activeTab === 'song' ? 'bg-accent text-accent-fg' : 'border border-border hover:bg-surface'}`}
+            onClick={() => setActiveTab('song')}
             disabled={!controlsEnabled}
-          />
-        </label>
+          >
+            Song
+          </button>
+          <button
+            type="button"
+            className={`rounded-md px-3 py-2 text-sm ${activeTab === 'lyrics' ? 'bg-accent text-accent-fg' : 'border border-border hover:bg-surface'} ${forceInstrumental ? 'opacity-50' : ''}`}
+            onClick={() => !forceInstrumental && setActiveTab('lyrics')}
+            disabled={!controlsEnabled}
+          >
+            Lyrics
+          </button>
+        </div>
 
-        <label className="text-sm">
-          Prompt weight
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={promptWeight} onChange={(e) => setPromptWeight(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm lg:col-span-2">
-          Secondary weighted prompt (optional)
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={secondaryPrompt} onChange={(e) => setSecondaryPrompt(e.target.value)} placeholder="No distorted guitars" disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          Secondary weight
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={secondaryWeight} onChange={(e) => setSecondaryWeight(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          Length (seconds)
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" type="number" min={5} max={240} value={lengthSeconds} onChange={(e) => setLengthSeconds(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          File name (optional)
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={fileName} onChange={(e) => setFileName(e.target.value)} placeholder="evening-drift" disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          Model
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-xs" value={model} onChange={(e) => setModel(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          Temperature
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={temperature} onChange={(e) => setTemperature(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          Top K
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={topK} onChange={(e) => setTopK(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          Seed (optional)
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={seed} onChange={(e) => setSeed(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          Guidance
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={guidance} onChange={(e) => setGuidance(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          BPM
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={bpm} onChange={(e) => setBpm(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          Density
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={density} onChange={(e) => setDensity(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          Brightness
-          <input className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={brightness} onChange={(e) => setBrightness(e.target.value)} disabled={!controlsEnabled} />
-        </label>
-        <label className="text-sm">
-          Scale
-          <select className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={scale} onChange={(e) => setScale(e.target.value as LyriaScale)} disabled={!controlsEnabled}>
-            {SCALE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
-        </label>
-        <label className="text-sm">
-          Generation mode
-          <select className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" value={mode} onChange={(e) => setMode(e.target.value as LyriaGenerationMode)} disabled={!controlsEnabled}>
-            {MODE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
-        </label>
+        {activeTab === 'song' && (
+          <>
+            <label className="text-sm lg:col-span-3">
+              Song prompt
+              <textarea
+                className="mt-1 min-h-28 w-full rounded-md border border-border bg-background px-3 py-2"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Dream-pop duet with a soaring female lead, wide choruses, emotional build, midnight city energy..."
+                required
+                disabled={!controlsEnabled}
+              />
+            </label>
 
-        <label className="inline-flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={muteBass} onChange={(e) => setMuteBass(e.target.checked)} disabled={!controlsEnabled} />
-          Mute bass
-        </label>
-        <label className="inline-flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={muteDrums} onChange={(e) => setMuteDrums(e.target.checked)} disabled={!controlsEnabled} />
-          Mute drums
-        </label>
-        <label className="inline-flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={onlyBassAndDrums} onChange={(e) => setOnlyBassAndDrums(e.target.checked)} disabled={!controlsEnabled} />
-          Only bass and drums
-        </label>
+            <label className="text-sm lg:col-span-2">
+              Extra style note (optional)
+              <input
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                value={styleNote}
+                onChange={(e) => setStyleNote(e.target.value)}
+                placeholder="Warm analog synths, live drums, glossy hook"
+                disabled={!controlsEnabled}
+              />
+            </label>
+            <label className="text-sm">
+              Negative prompt (optional)
+              <input
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                value={negativePrompt}
+                onChange={(e) => setNegativePrompt(e.target.value)}
+                placeholder="No trap hats, no harsh distortion"
+                disabled={!controlsEnabled}
+              />
+            </label>
+
+            <label className="text-sm">
+              Length (seconds)
+              <input
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                type="number"
+                min={3}
+                max={600}
+                value={lengthSeconds}
+                onChange={(e) => setLengthSeconds(e.target.value)}
+                disabled={!controlsEnabled}
+              />
+            </label>
+            <label className="text-sm">
+              File name (optional)
+              <input
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+                placeholder="midnight-heartbreak"
+                disabled={!controlsEnabled}
+              />
+            </label>
+            <label className="text-sm">
+              Seed (optional)
+              <input
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
+                value={seed}
+                onChange={(e) => setSeed(e.target.value)}
+                placeholder="42"
+                disabled={!controlsEnabled}
+              />
+            </label>
+
+            <label className="inline-flex items-center gap-2 text-sm lg:col-span-2">
+              <input
+                type="checkbox"
+                checked={forceInstrumental}
+                onChange={(e) => setForceInstrumental(e.target.checked)}
+                disabled={!controlsEnabled}
+              />
+              Generate instrumental only
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={withTimestamps}
+                onChange={(e) => setWithTimestamps(e.target.checked)}
+                disabled={!controlsEnabled}
+              />
+              Return word timestamps
+            </label>
+
+            <p className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-fg lg:col-span-3">
+              Vocals are the default path. Switch to the Lyrics tab only if you want to control the sung words directly.
+            </p>
+          </>
+        )}
+
+        {activeTab === 'lyrics' && (
+          <>
+            <label className="inline-flex items-center gap-2 text-sm lg:col-span-3">
+              <input
+                type="checkbox"
+                checked={useCustomLyrics}
+                onChange={(e) => setUseCustomLyrics(e.target.checked)}
+                disabled={!controlsEnabled || forceInstrumental}
+              />
+              Use custom lyrics for the vocal sections
+            </label>
+
+            {forceInstrumental && (
+              <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 lg:col-span-3">
+                Instrumental mode disables lyrics. Turn it off in the Song tab to write vocals.
+              </p>
+            )}
+
+            {!forceInstrumental && useCustomLyrics && (
+              <label className="text-sm lg:col-span-3">
+                Lyrics
+                <textarea
+                  className="mt-1 min-h-72 w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-xs"
+                  value={lyrics}
+                  onChange={(e) => setLyrics(e.target.value)}
+                  placeholder={`[Verse 1]\nStreetlights ripple on the glass\nI keep your name behind my teeth\n\n[Chorus]\nMeet me where the skyline shakes\nSing me into morning`}
+                  disabled={!controlsEnabled}
+                />
+              </label>
+            )}
+
+            {!forceInstrumental && !useCustomLyrics && (
+              <p className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-sm text-muted-fg lg:col-span-3">
+                Leave this off if you want ElevenLabs to improvise the vocals from your song prompt.
+              </p>
+            )}
+
+            {!forceInstrumental && useCustomLyrics && (
+              <p className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-fg lg:col-span-3">
+                Separate sections with blank lines. Optional labels like <code>[Verse 1]</code> or <code>[Chorus]</code> are preserved and mapped into the composition plan sent to ElevenLabs.
+              </p>
+            )}
+          </>
+        )}
 
         {createMusicMutation.error && (
           <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300 lg:col-span-3">
-            {asErrorMessage(createMusicMutation.error, 'Music generation failed.')}
+            {asErrorMessage(createMusicMutation.error, 'Song generation failed.')}
           </p>
         )}
 
         <div className="lg:col-span-3">
           <button disabled={!controlsEnabled} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-60">
-            {createMusicMutation.isPending ? 'Generating…' : 'Generate music'}
+            {createMusicMutation.isPending ? 'Generating…' : 'Generate song'}
           </button>
         </div>
       </form>
@@ -293,7 +350,7 @@ export default function CreateMusicPanel() {
               <thead className="bg-surface/40">
                 <tr>
                   <th className="px-3 py-2 text-left">Status</th>
-                  <th className="px-3 py-2 text-left">Prompt</th>
+                  <th className="px-3 py-2 text-left">Song</th>
                   <th className="px-3 py-2 text-left">Duration</th>
                   <th className="px-3 py-2 text-left">File</th>
                   <th className="px-3 py-2 text-left">Size</th>
@@ -305,8 +362,11 @@ export default function CreateMusicPanel() {
                 {(jobs.data?.items ?? []).map((job) => (
                   <tr key={job.id} className="border-t border-border/60 align-top">
                     <td className="px-3 py-2">{job.status}</td>
-                    <td className="px-3 py-2 max-w-md">
-                      <p className="line-clamp-2">{job.prompt || '-'}</p>
+                    <td className="max-w-md px-3 py-2">
+                      <p className="font-medium">{getSongTitle(job) || job.prompt || '-'}</p>
+                      {job.prompt && getSongTitle(job) && (
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-fg">{job.prompt}</p>
+                      )}
                       {job.errorMessage && (
                         <p className="mt-1 text-xs text-red-300">{job.errorMessage}</p>
                       )}
@@ -322,7 +382,7 @@ export default function CreateMusicPanel() {
                         <button
                           className="rounded-md border border-border px-2 py-1 text-xs hover:bg-surface disabled:opacity-60"
                           disabled={previewMutation.isPending}
-                          onClick={() => previewMutation.mutate({ jobId: job.id, storageUrl: job.outputStorageUrl! })}
+                          onClick={() => previewMutation.mutate(job)}
                         >
                           Preview
                         </button>
@@ -338,9 +398,18 @@ export default function CreateMusicPanel() {
         )}
 
         {previewUrl && (
-          <div className="border-t border-border bg-surface/30 px-4 py-3">
-            <p className="mb-2 text-xs text-muted-fg">Previewing job {previewJobId}</p>
+          <div className="space-y-3 border-t border-border bg-surface/30 px-4 py-3">
+            <div>
+              <p className="text-xs text-muted-fg">Previewing job {previewJobId}</p>
+              {previewTitle && <p className="mt-1 text-sm font-medium">{previewTitle}</p>}
+            </div>
             <audio controls src={previewUrl} className="w-full" />
+            {previewLyrics && (
+              <div className="rounded-md border border-border/70 bg-background/60 p-3">
+                <p className="mb-2 text-xs uppercase tracking-wide text-muted-fg">Lyrics</p>
+                <pre className="whitespace-pre-wrap text-sm text-foreground">{previewLyrics}</pre>
+              </div>
+            )}
           </div>
         )}
       </div>

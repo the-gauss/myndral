@@ -386,7 +386,7 @@ export default function Dashboard() {
   const toolbarTitle = useMemo(() => {
     if (tab === 'artists') return 'Artist Management'
     if (tab === 'albums') return 'Album Management'
-    if (tab === 'create_music') return 'Create Music'
+    if (tab === 'create_music') return 'Create Songs'
     return 'Track Management'
   }, [tab])
 
@@ -419,7 +419,7 @@ export default function Dashboard() {
             onClick={() => setTab('create_music')}
             className={`w-full rounded-md px-3 py-2 text-left text-sm ${tab === 'create_music' ? 'bg-accent text-accent-fg' : 'hover:bg-surface'}`}
           >
-            Create Music
+            Create Songs
           </button>
         </nav>
 

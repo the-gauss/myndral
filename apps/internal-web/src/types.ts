@@ -2,25 +2,28 @@ export type ContentStatus = 'draft' | 'review' | 'published' | 'archived'
 export type AlbumType = 'album' | 'single' | 'ep' | 'compilation'
 export type UserRole = 'listener' | 'content_editor' | 'content_reviewer' | 'admin'
 export type MusicGenerationStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled'
-export type LyriaScale =
-  | 'SCALE_UNSPECIFIED'
-  | 'C_MAJOR_A_MINOR'
-  | 'D_FLAT_MAJOR_B_FLAT_MINOR'
-  | 'D_MAJOR_B_MINOR'
-  | 'E_FLAT_MAJOR_C_MINOR'
-  | 'E_MAJOR_D_FLAT_MINOR'
-  | 'F_MAJOR_D_MINOR'
-  | 'G_FLAT_MAJOR_E_FLAT_MINOR'
-  | 'G_MAJOR_E_MINOR'
-  | 'A_FLAT_MAJOR_F_MINOR'
-  | 'A_MAJOR_G_FLAT_MINOR'
-  | 'B_FLAT_MAJOR_G_MINOR'
-  | 'B_MAJOR_A_FLAT_MINOR'
-export type LyriaGenerationMode =
-  | 'MUSIC_GENERATION_MODE_UNSPECIFIED'
-  | 'QUALITY'
-  | 'DIVERSITY'
-  | 'VOCALIZATION'
+export type ElevenLabsOutputFormat =
+  | 'mp3_22050_32'
+  | 'mp3_24000_48'
+  | 'mp3_44100_32'
+  | 'mp3_44100_64'
+  | 'mp3_44100_96'
+  | 'mp3_44100_128'
+  | 'mp3_44100_192'
+  | 'pcm_8000'
+  | 'pcm_16000'
+  | 'pcm_22050'
+  | 'pcm_24000'
+  | 'pcm_32000'
+  | 'pcm_44100'
+  | 'pcm_48000'
+  | 'ulaw_8000'
+  | 'alaw_8000'
+  | 'opus_48000_32'
+  | 'opus_48000_64'
+  | 'opus_48000_96'
+  | 'opus_48000_128'
+  | 'opus_48000_192'
 
 export interface InternalUser {
   id: string
@@ -134,23 +137,18 @@ export interface MusicPromptInput {
 
 export interface MusicGenerateRequest {
   prompt: string
-  promptWeight: number
+  promptWeight?: number
   weightedPrompts?: MusicPromptInput[]
+  negativePrompt?: string
   lengthSeconds: number
   fileName?: string
   model?: string
-  temperature?: number
-  topK?: number
   seed?: number
-  guidance?: number
-  bpm?: number
-  density?: number
-  brightness?: number
-  scale?: LyriaScale
-  muteBass?: boolean
-  muteDrums?: boolean
-  onlyBassAndDrums?: boolean
-  musicGenerationMode?: LyriaGenerationMode
+  outputFormat?: ElevenLabsOutputFormat
+  forceInstrumental?: boolean
+  lyrics?: string
+  lyricsLanguage?: string
+  withTimestamps?: boolean
 }
 
 export interface MusicGenerationJob {

@@ -4,7 +4,7 @@ import hashlib
 import mimetypes
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse, unquote
+from urllib.parse import unquote, urlparse
 
 from mutagen import File as MutagenFile
 

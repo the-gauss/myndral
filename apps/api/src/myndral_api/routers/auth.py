@@ -2,7 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from myndral_api.auth_utils import create_access_token, fetch_user_for_login, to_public_user, verify_password
+from myndral_api.auth_utils import (
+    create_access_token,
+    fetch_user_for_login,
+    to_public_user,
+    verify_password,
+)
 from myndral_api.db.session import get_db
 
 router = APIRouter()

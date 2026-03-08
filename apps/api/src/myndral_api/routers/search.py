@@ -236,8 +236,20 @@ LIMIT :limit OFFSET :offset
             params,
         )
     ).mappings().all()
-    total = int((await db.execute(text("SELECT count(*) FROM artists a " + filter_sql), params)).scalar_one())
-    return {"items": [_serialize_artist(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+    total = int(
+        (
+            await db.execute(
+                text("SELECT count(*) FROM artists a " + filter_sql),
+                params,
+            )
+        ).scalar_one()
+    )
+    return {
+        "items": [_serialize_artist(row) for row in rows],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 async def _search_albums(
@@ -317,7 +329,12 @@ JOIN artists ar ON ar.id = al.artist_id
             )
         ).scalar_one()
     )
-    return {"items": [_serialize_album(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+    return {
+        "items": [_serialize_album(row) for row in rows],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 async def _search_tracks(
@@ -429,7 +446,12 @@ JOIN artists aa ON aa.id = al.artist_id
             )
         ).scalar_one()
     )
-    return {"items": [_serialize_track(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+    return {
+        "items": [_serialize_track(row) for row in rows],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 async def _search_playlists(
@@ -480,7 +502,14 @@ LIMIT :limit OFFSET :offset
             params,
         )
     ).mappings().all()
-    total = int((await db.execute(text("SELECT count(*) FROM playlists p " + filter_sql), params)).scalar_one())
+    total = int(
+        (
+            await db.execute(
+                text("SELECT count(*) FROM playlists p " + filter_sql),
+                params,
+            )
+        ).scalar_one()
+    )
     return {
         "items": [_serialize_playlist(row) for row in rows],
         "total": total,

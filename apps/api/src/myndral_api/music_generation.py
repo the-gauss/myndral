@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import re
+import wave
 from dataclasses import dataclass
 from datetime import UTC, datetime
-import re
 from pathlib import Path
-import wave
 
 from google import genai
 from google.genai import types
@@ -100,7 +100,9 @@ async def generate_lyria_file(
     try:
         output_dir.relative_to(DATA_DIR)
     except ValueError as exc:
-        raise MusicGenerationError("LYRIA_OUTPUT_SUBDIR must resolve inside the data/ directory.") from exc
+        raise MusicGenerationError(
+            "LYRIA_OUTPUT_SUBDIR must resolve inside the data/ directory."
+        ) from exc
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Lyria live stream currently returns PCM chunks; we persist a WAV container.
@@ -111,7 +113,8 @@ async def generate_lyria_file(
     filtered_prompt_text: str | None = None
     filtered_prompt_reason: str | None = None
 
-    client = genai.Client(api_key=api_key)
+    # Lyria Live is currently only available on the v1alpha live endpoint.
+    client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
     stream_deadline = asyncio.get_running_loop().time() + float(length_seconds)
 
     try:

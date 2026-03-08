@@ -1,6 +1,6 @@
-from datetime import UTC, date, datetime
 import json
 import re
+from datetime import UTC, date, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -207,7 +207,10 @@ class MusicGenerateRequest(CamelModel):
     mute_bass: bool | None = Field(default=None, alias="muteBass")
     mute_drums: bool | None = Field(default=None, alias="muteDrums")
     only_bass_and_drums: bool | None = Field(default=None, alias="onlyBassAndDrums")
-    music_generation_mode: LyriaGenerationMode | None = Field(default=None, alias="musicGenerationMode")
+    music_generation_mode: LyriaGenerationMode | None = Field(
+        default=None,
+        alias="musicGenerationMode",
+    )
 
 def _iso(value: Any) -> str | None:
     if value is None:
@@ -268,7 +271,9 @@ def _to_weighted_prompts(payload: MusicGenerateRequest) -> list[genai_types.Weig
     return prompts
 
 
-def _to_music_generation_config(payload: MusicGenerateRequest) -> genai_types.LiveMusicGenerationConfig:
+def _to_music_generation_config(
+    payload: MusicGenerateRequest,
+) -> genai_types.LiveMusicGenerationConfig:
     scale = genai_types.Scale[payload.scale] if payload.scale else None
     mode = (
         genai_types.MusicGenerationMode[payload.music_generation_mode]
@@ -350,7 +355,11 @@ def _enrich_audio_files(audio_files: list[TrackAudioInput]) -> int | None:
             continue
 
         inferred_format = inferred.get("format")
-        if inferred_format and audio.format == "mp3" and inferred_format in {"aac", "ogg", "flac", "opus"}:
+        if (
+            inferred_format
+            and audio.format == "mp3"
+            and inferred_format in {"aac", "ogg", "flac", "opus"}
+        ):
             # Most forms default to mp3; prefer inferred format for local assets.
             audio.format = inferred_format
 
@@ -515,7 +524,10 @@ async def _ensure_artist_slug(db: AsyncSession, preferred_slug: str) -> str:
     candidate = base
     index = 2
     while True:
-        exists = await db.execute(text("SELECT 1 FROM artists WHERE slug = :slug"), {"slug": candidate})
+        exists = await db.execute(
+            text("SELECT 1 FROM artists WHERE slug = :slug"),
+            {"slug": candidate},
+        )
         if exists.first() is None:
             return candidate
         candidate = f"{base}-{index}"
@@ -672,7 +684,10 @@ LIMIT 1
 
 
 async def _replace_artist_genres(db: AsyncSession, artist_id: str, genre_ids: list[str]) -> None:
-    await db.execute(text("DELETE FROM artist_genres WHERE artist_id = :artist_id"), {"artist_id": artist_id})
+    await db.execute(
+        text("DELETE FROM artist_genres WHERE artist_id = :artist_id"),
+        {"artist_id": artist_id},
+    )
     for genre_id in genre_ids:
         await db.execute(
             text(
@@ -687,7 +702,10 @@ ON CONFLICT DO NOTHING
 
 
 async def _replace_album_genres(db: AsyncSession, album_id: str, genre_ids: list[str]) -> None:
-    await db.execute(text("DELETE FROM album_genres WHERE album_id = :album_id"), {"album_id": album_id})
+    await db.execute(
+        text("DELETE FROM album_genres WHERE album_id = :album_id"),
+        {"album_id": album_id},
+    )
     for genre_id in genre_ids:
         await db.execute(
             text(
@@ -702,7 +720,10 @@ ON CONFLICT DO NOTHING
 
 
 async def _replace_track_genres(db: AsyncSession, track_id: str, genre_ids: list[str]) -> None:
-    await db.execute(text("DELETE FROM track_genres WHERE track_id = :track_id"), {"track_id": track_id})
+    await db.execute(
+        text("DELETE FROM track_genres WHERE track_id = :track_id"),
+        {"track_id": track_id},
+    )
     for genre_id in genre_ids:
         await db.execute(
             text(
@@ -722,7 +743,10 @@ async def _replace_track_artists(
     primary_artist_id: str,
     artist_links: list[TrackArtistLinkInput],
 ) -> None:
-    await db.execute(text("DELETE FROM track_artists WHERE track_id = :track_id"), {"track_id": track_id})
+    await db.execute(
+        text("DELETE FROM track_artists WHERE track_id = :track_id"),
+        {"track_id": track_id},
+    )
     await db.execute(
         text(
             """
@@ -785,7 +809,10 @@ async def _upsert_audio_files(
     replace: bool,
 ) -> None:
     if replace:
-        await db.execute(text("DELETE FROM track_audio_files WHERE track_id = :track_id"), {"track_id": track_id})
+        await db.execute(
+            text("DELETE FROM track_audio_files WHERE track_id = :track_id"),
+            {"track_id": track_id},
+        )
     for audio in audio_files:
         _validate_audio_url(audio.storage_url)
         await db.execute(
@@ -843,7 +870,10 @@ WHERE id = :album_id
 
 
 @router.post("/auth/login", summary="Internal employee login")
-async def internal_login(payload: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def internal_login(
+    payload: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
     identity = payload.username.strip()
     invalid = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -929,7 +959,11 @@ async def generate_music(
             detail="LYRIA_3_API_KEY is not configured on the API server.",
         )
 
-    model_name = _normalize_optional_text(payload.model) or settings.lyria_model or DEFAULT_LYRIA_MODEL
+    model_name = (
+        _normalize_optional_text(payload.model)
+        or settings.lyria_model
+        or DEFAULT_LYRIA_MODEL
+    )
     weighted_prompts = _to_weighted_prompts(payload)
     config = _to_music_generation_config(payload)
     input_params = _build_music_input_params(payload, model_name)
@@ -939,7 +973,13 @@ async def generate_music(
             text(
                 """
 INSERT INTO generation_jobs (job_type, status, input_params, created_by, started_at)
-VALUES ('music_generation', 'in_progress', CAST(:input_params AS jsonb), CAST(:created_by AS uuid), now())
+VALUES (
+  'music_generation',
+  'in_progress',
+  CAST(:input_params AS jsonb),
+  CAST(:created_by AS uuid),
+  now()
+)
 RETURNING id::text
 """
             ),
@@ -1038,7 +1078,10 @@ WHERE id = CAST(:job_id AS uuid)
     )
     row = result.mappings().first()
     if row is None:
-        raise HTTPException(status_code=500, detail="Generation succeeded but job could not be loaded.")
+        raise HTTPException(
+            status_code=500,
+            detail="Generation succeeded but job could not be loaded.",
+        )
     return _serialize_music_job(row)
 
 
@@ -1071,7 +1114,10 @@ LIMIT :limit OFFSET :offset
         {"limit": limit, "offset": offset},
     )
     count_result = await db.execute(
-        text("SELECT count(*) AS total FROM generation_jobs WHERE job_type::text = 'music_generation'")
+        text(
+            "SELECT count(*) AS total FROM generation_jobs "
+            "WHERE job_type::text = 'music_generation'"
+        )
     )
     return {
         "items": [_serialize_music_job(row) for row in items_result.mappings().all()],
@@ -1291,7 +1337,10 @@ async def update_artist(
         assignments = ", ".join(f"{column} = :{column}" for column in update_values)
         params = {**update_values, "artist_id": artist_id}
         try:
-            await db.execute(text(f"UPDATE artists SET {assignments} WHERE id = :artist_id"), params)
+            await db.execute(
+                text(f"UPDATE artists SET {assignments} WHERE id = :artist_id"),
+                params,
+            )
         except IntegrityError as exc:
             raise _integrity_exception(exc, "Could not update artist.") from exc
 
@@ -1596,7 +1645,10 @@ JOIN albums a ON a.id = t.album_id
 JOIN artists pa ON pa.id = t.primary_artist_id
 WHERE (CAST(:status_filter AS text) IS NULL OR t.status::text = CAST(:status_filter AS text))
   AND (CAST(:album_id AS uuid) IS NULL OR t.album_id = CAST(:album_id AS uuid))
-  AND (CAST(:artist_id AS uuid) IS NULL OR t.primary_artist_id = CAST(:artist_id AS uuid))
+  AND (
+    CAST(:artist_id AS uuid) IS NULL
+    OR t.primary_artist_id = CAST(:artist_id AS uuid)
+  )
   AND (CAST(:search_query AS text) IS NULL OR t.title ILIKE CAST(:search_query AS text))
 ORDER BY t.updated_at DESC
 LIMIT :limit OFFSET :offset
@@ -1645,7 +1697,10 @@ async def create_track(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     album_result = await db.execute(
-        text("SELECT id::text AS id, artist_id::text AS artist_id FROM albums WHERE id = :album_id LIMIT 1"),
+        text(
+            "SELECT id::text AS id, artist_id::text AS artist_id "
+            "FROM albums WHERE id = :album_id LIMIT 1"
+        ),
         {"album_id": payload.album_id},
     )
     album = album_result.mappings().first()
@@ -1772,18 +1827,29 @@ async def update_track(
         assignments = ", ".join(f"{column} = :{column}" for column in update_values)
         params = {**update_values, "track_id": track_id}
         try:
-            await db.execute(text(f"UPDATE tracks SET {assignments} WHERE id = :track_id"), params)
+            await db.execute(
+                text(f"UPDATE tracks SET {assignments} WHERE id = :track_id"),
+                params,
+            )
         except IntegrityError as exc:
             raise _integrity_exception(exc, "Could not update track.") from exc
 
     if "artist_links" in values and values["artist_links"] is not None:
-        await _replace_track_artists(db, track_id, primary_artist_for_links, values["artist_links"])
+        await _replace_track_artists(
+            db,
+            track_id,
+            primary_artist_for_links,
+            values["artist_links"],
+        )
     if "genre_ids" in values and values["genre_ids"] is not None:
         await _replace_track_genres(db, track_id, values["genre_ids"])
     if "lyrics" in values and values["lyrics"] is not None:
         await _upsert_lyrics(db, track_id, values["lyrics"])
     if values.get("clear_lyrics"):
-        await db.execute(text("DELETE FROM lyrics WHERE track_id = :track_id"), {"track_id": track_id})
+        await db.execute(
+            text("DELETE FROM lyrics WHERE track_id = :track_id"),
+            {"track_id": track_id},
+        )
     if audio_files_input is not None:
         await _upsert_audio_files(
             db,

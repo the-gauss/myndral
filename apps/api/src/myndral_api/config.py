@@ -1,11 +1,20 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+ENV_FILES = [
+    REPO_ROOT / ".env",  # monorepo root (default)
+    REPO_ROOT / ".env.local",
+    REPO_ROOT / "apps" / "api" / ".env",  # app-local override (optional)
+    ".env",
+]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_FILES,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -15,10 +24,10 @@ class Settings(BaseSettings):
     app_name: str = "MyndralAI API"
     environment: str = "development"
     debug: bool = False
-    secret_key: str
+    secret_key: str = "change-me-to-a-secure-random-string-at-least-32-chars"
 
     # Database
-    database_url: str
+    database_url: str = "postgresql+asyncpg://myndral:myndral@localhost:5432/myndral"
 
     # Redis
     redis_url: str = "redis://localhost:6379"

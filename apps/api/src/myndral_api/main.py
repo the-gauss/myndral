@@ -20,7 +20,9 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
-    description="AI-generated music streaming platform — every artist, album, and track is created by AI.",
+    description=(
+        "AI-generated music streaming platform — every artist, album, and track is created by AI."
+    ),
     docs_url="/docs",
     redoc_url="/redoc",
 )

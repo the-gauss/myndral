@@ -59,6 +59,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// Hook export is safe; keep it colocated with provider while silencing React Refresh rule.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTheme() {
   return useContext(ThemeContext)
 }

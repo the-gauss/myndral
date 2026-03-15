@@ -42,10 +42,21 @@ export default function ImageInput({
     onSuccess: ({ storageUrl }) => onChange(storageUrl),
   })
 
-  const uploadError = uploadMutation.error
-    ? ((uploadMutation.error as AxiosError<{ detail?: string }>)?.response?.data?.detail
-       ?? 'Upload failed.')
-    : null
+  // Safely extract a displayable string from the Axios error.
+  // FastAPI validation failures return detail as an array of objects; rendering
+  // a non-string value in JSX throws "Objects are not valid as a React child"
+  // which, without an error boundary, unmounts the entire app (black page).
+  const uploadError = (() => {
+    if (!uploadMutation.error) return null
+    const err = uploadMutation.error as AxiosError<{ detail?: unknown }>
+    const detail = err?.response?.data?.detail
+    if (typeof detail === 'string' && detail.trim()) return detail.trim()
+    if (Array.isArray(detail) && detail.length > 0) {
+      const first = (detail[0] as { msg?: string })?.msg
+      return first ? `Validation error: ${first}` : 'Upload failed.'
+    }
+    return 'Upload failed.'
+  })()
 
   return (
     <div className="space-y-1.5">

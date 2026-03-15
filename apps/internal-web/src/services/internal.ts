@@ -29,7 +29,12 @@ export const listGenres = () =>
 export const uploadImage = (file: File) => {
   const form = new FormData()
   form.append('file', file)
-  return api.post<{ storageUrl: string }>('/v1/internal/images/upload', form).then((r) => r.data)
+  // Axios 1.x JSON-stringifies FormData when the instance default Content-Type is
+  // 'application/json'. Clearing it per-request lets the browser set the correct
+  // 'multipart/form-data; boundary=...' header automatically.
+  return api.post<{ storageUrl: string }>('/v1/internal/images/upload', form, {
+    headers: { 'Content-Type': null },
+  }).then((r) => r.data)
 }
 
 export const inspectAudio = (payload: { storageUrl: string }) =>
@@ -172,7 +177,10 @@ export const uploadCustomMusic = ({ file, artistId, albumId, trackTitle, explici
   form.append('track_title', trackTitle)
   form.append('explicit', String(explicit))
   if (lyrics?.trim()) form.append('lyrics', lyrics.trim())
-  return api.post<MusicGenerationJob>('/v1/internal/music/upload', form).then((r) => r.data)
+  // Same reason as uploadImage: clear JSON Content-Type so FormData is sent as multipart.
+  return api.post<MusicGenerationJob>('/v1/internal/music/upload', form, {
+    headers: { 'Content-Type': null },
+  }).then((r) => r.data)
 }
 
 export interface LinkExternalUrlPayload {

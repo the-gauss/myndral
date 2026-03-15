@@ -16,7 +16,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={cycleTheme}
-      title={isPremium ? 'Cycle theme (light / dark / paper)' : 'Cycle theme (light / dark)'}
+      title={isPremium ? 'Cycle theme (Light / Dark / Minkowski)' : 'Cycle theme (Light / Dark)'}
       className="p-2 rounded-full text-muted-fg hover:text-foreground hover:bg-surface transition-colors"
     >
       <Icon size={18} />

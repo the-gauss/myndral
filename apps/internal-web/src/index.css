@@ -2,23 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Invariant tokens (theme-independent) ─────────────────────────────────── */
 :root {
-  --background: 11 15 20;
-  --foreground: 238 244 248;
-  --surface: 18 24 30;
-  --border: 45 55 66;
-  --muted: 105 120 134;
-  --muted-foreground: 153 168 182;
-  --accent: 37 126 92;
-  --accent-foreground: 237 252 245;
-  --success: 47 199 127;
-  --warning: 239 187 65;
+  /* Fonts */
+  --font-main: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Inter", "Roboto", sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+
+  /* Font weights */
+  --fw-light:    300;
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+  --fw-extrabold:800;
+
+  /* Border radius */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   12px;
+  --radius-lg:   18px;
+  --radius-xl:   24px;
+  --radius-pill: 30px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.1),  0 4px 8px rgba(0, 0, 0, 0.06);
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.25s ease;
+  --transition-slow: 0.4s ease;
 }
 
+/* ── Dark theme (only theme for internal studio) ──────────────────────────── */
+:root {
+  --background:        11 11 18;      /* #0b0b12   deep near-black        */
+  --foreground:        232 232 240;   /* #e8e8f0   cool off-white         */
+  --surface:           15 15 24;      /* #0f0f18   darker offset          */
+  --border:            29 29 36;      /* subtle on near-black             */
+  --muted:             85 85 106;     /* #55556a                          */
+  --muted-foreground:  136 136 170;   /* #8888aa                          */
+  --accent:            255 32 144;    /* #ff2090   hot pink               */
+  --accent-foreground: 255 255 255;
+
+  --success:           52 216 107;    /* #34d86b */
+  --warning:           251 191 36;    /* #fbbf24 */
+  --danger:            248 113 113;   /* #f87171 */
+  --info:              96 165 250;    /* #60a5fa */
+
+  --glass-bg:          rgba(18, 18, 32, 0.72);
+  --glass-border:      rgba(255, 255, 255, 0.07);
+  --glass-blur:        12px;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
 @layer base {
   html, body, #root {
     @apply h-full bg-background text-foreground;
-    font-family: "Avenir Next", "Segoe UI", "Inter", system-ui, sans-serif;
+    font-family: var(--font-main);
     -webkit-font-smoothing: antialiased;
   }
 
@@ -26,14 +70,8 @@
     @apply border-border;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-full;
-  }
+  ::-webkit-scrollbar        { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-fg; }
 }

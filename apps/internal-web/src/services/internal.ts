@@ -147,6 +147,26 @@ export const updateTrack = (trackId: string, payload: Partial<{
 export const generateMusic = (payload: MusicGenerateRequest) =>
   api.post<MusicGenerationJob>('/v1/internal/music/generate', payload).then((r) => r.data)
 
+export interface UploadMusicPayload {
+  file: File
+  artistId: string
+  albumId: string
+  trackTitle: string
+  explicit: boolean
+  lyrics?: string
+}
+
+export const uploadCustomMusic = ({ file, artistId, albumId, trackTitle, explicit, lyrics }: UploadMusicPayload) => {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('artist_id', artistId)
+  form.append('album_id', albumId)
+  form.append('track_title', trackTitle)
+  form.append('explicit', String(explicit))
+  if (lyrics?.trim()) form.append('lyrics', lyrics.trim())
+  return api.post<MusicGenerationJob>('/v1/internal/music/upload', form).then((r) => r.data)
+}
+
 export const listMusicJobs = (params?: { limit?: number; offset?: number }) =>
   api.get<Paginated<MusicGenerationJob>>('/v1/internal/music/jobs', { params }).then((r) => r.data)
 

@@ -4,13 +4,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   fetchGeneratedMusicFile,
   generateMusic,
+  uploadCustomMusic,
   listAlbums,
   listArtists,
   listMusicJobs,
 } from '../services/internal'
 import type { ArtistItem, AlbumItem, MusicGenerationJob } from '../types'
 
-type CreatorTab = 'song' | 'lyrics'
+type CreatorTab = 'song' | 'lyrics' | 'upload'
+
+const ACCEPTED_AUDIO = '.mp3,.m4a,.wav,.flac,.ogg,.opus,.aac,audio/*'
 
 function parseOptionalNumber(raw: string): number | undefined {
   const value = Number(raw)
@@ -98,11 +101,16 @@ export default function CreateMusicPanel() {
   const [lyrics, setLyrics] = useState('')
   const [withTimestamps, setWithTimestamps] = useState(false)
 
+  // ── Upload tab ───────────────────────────────────────────────────────────
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadLyrics, setUploadLyrics] = useState('')
+
   // ── Preview ──────────────────────────────────────────────────────────────
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewJobId, setPreviewJobId] = useState<string | null>(null)
   const [previewTitle, setPreviewTitle] = useState<string | null>(null)
   const [previewLyrics, setPreviewLyrics] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   // ── Catalog data ─────────────────────────────────────────────────────────
   const artistsQuery = useQuery({
@@ -141,12 +149,23 @@ export default function CreateMusicPanel() {
     },
   })
 
+  const uploadMutation = useMutation({
+    mutationFn: uploadCustomMusic,
+    onSuccess: () => {
+      setUploadFile(null)
+      setUploadLyrics('')
+      queryClient.invalidateQueries({ queryKey: ['music-jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['staging'] })
+    },
+  })
+
   const previewMutation = useMutation({
     mutationFn: async (job: MusicGenerationJob) => {
       const blob = await fetchGeneratedMusicFile(job.outputStorageUrl!)
       return { blob, jobId: job.id, title: getSongTitle(job), lyrics: getLyrics(job) }
     },
     onSuccess: ({ blob, jobId, title, lyrics: lyr }) => {
+      setPreviewError(null)
       setPreviewUrl((current) => {
         if (current) URL.revokeObjectURL(current)
         return URL.createObjectURL(blob)
@@ -155,6 +174,9 @@ export default function CreateMusicPanel() {
       setPreviewTitle(title)
       setPreviewLyrics(lyr)
     },
+    onError: (error) => {
+      setPreviewError(asErrorMessage(error, 'Failed to load audio file.'))
+    },
   })
 
   useEffect(() => () => {
@@ -162,8 +184,8 @@ export default function CreateMusicPanel() {
   }, [previewUrl])
 
   const controlsEnabled = useMemo(
-    () => !createMusicMutation.isPending,
-    [createMusicMutation.isPending],
+    () => !createMusicMutation.isPending && !uploadMutation.isPending,
+    [createMusicMutation.isPending, uploadMutation.isPending],
   )
 
   const publishedArtists: ArtistItem[] = artistsQuery.data?.items ?? []
@@ -173,6 +195,7 @@ export default function CreateMusicPanel() {
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (activeTab === 'upload') return  // handled by the Upload button's onClick
     const weightedPrompts = styleNote.trim()
       ? [{ text: styleNote.trim(), weight: 0.85 }]
       : undefined
@@ -288,6 +311,14 @@ export default function CreateMusicPanel() {
             disabled={!controlsEnabled}
           >
             Lyrics
+          </button>
+          <button
+            type="button"
+            className={`rounded-md px-3 py-2 text-sm ${activeTab === 'upload' ? 'bg-accent text-accent-fg' : 'border border-border hover:bg-surface'}`}
+            onClick={() => setActiveTab('upload')}
+            disabled={!controlsEnabled}
+          >
+            Upload file
           </button>
         </div>
 
@@ -428,30 +459,103 @@ export default function CreateMusicPanel() {
           </>
         )}
 
-        {createMusicMutation.error && (
+        {activeTab === 'upload' && (
+          <>
+            <label className="text-sm lg:col-span-2">
+              Audio file <span className="text-red-400">*</span>
+              <input
+                type="file"
+                accept={ACCEPTED_AUDIO}
+                className="mt-1 block w-full cursor-pointer rounded-md border border-border bg-background px-3 py-2 text-sm file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-accent file:px-2 file:py-1 file:text-xs file:font-medium file:text-accent-fg disabled:opacity-50"
+                onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                disabled={!controlsEnabled}
+              />
+              {uploadFile && (
+                <p className="mt-1 text-xs text-muted-fg">
+                  {uploadFile.name} ({(uploadFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
+            </label>
+
+            <div className="lg:col-span-1" />
+
+            <label className="text-sm lg:col-span-3">
+              Lyrics (optional)
+              <textarea
+                className="mt-1 min-h-40 w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-xs"
+                value={uploadLyrics}
+                onChange={(e) => setUploadLyrics(e.target.value)}
+                placeholder={`[Verse 1]\nStreetlights ripple on the glass\nI keep your name behind my teeth\n\n[Chorus]\nMeet me where the skyline shakes\nSing me into morning`}
+                disabled={!controlsEnabled}
+              />
+            </label>
+          </>
+        )}
+
+        {/* ── Status / error feedback ───────────────────────────────────── */}
+        {activeTab !== 'upload' && createMusicMutation.error && (
           <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300 lg:col-span-3">
             {asErrorMessage(createMusicMutation.error, 'Song generation failed.')}
           </p>
         )}
 
-        {createMusicMutation.isSuccess && (
+        {activeTab !== 'upload' && createMusicMutation.isSuccess && (
           <p className="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-300 lg:col-span-3">
             Song generated and sent to Staging for review.
           </p>
         )}
 
+        {activeTab === 'upload' && uploadMutation.error && (
+          <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300 lg:col-span-3">
+            {asErrorMessage(uploadMutation.error, 'Upload failed.')}
+          </p>
+        )}
+
+        {activeTab === 'upload' && uploadMutation.isSuccess && (
+          <p className="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-300 lg:col-span-3">
+            File uploaded and sent to Staging for review.
+          </p>
+        )}
+
         <div className="lg:col-span-3">
-          <button
-            disabled={
-              !controlsEnabled ||
-              !selectedArtistId ||
-              !selectedAlbumId ||
-              !trackTitle.trim()
-            }
-            className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-60"
-          >
-            {createMusicMutation.isPending ? 'Generating…' : 'Generate song'}
-          </button>
+          {activeTab !== 'upload' ? (
+            <button
+              disabled={
+                !controlsEnabled ||
+                !selectedArtistId ||
+                !selectedAlbumId ||
+                !trackTitle.trim()
+              }
+              className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-60"
+            >
+              {createMusicMutation.isPending ? 'Generating…' : 'Generate song'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={
+                !controlsEnabled ||
+                !selectedArtistId ||
+                !selectedAlbumId ||
+                !trackTitle.trim() ||
+                !uploadFile
+              }
+              className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-60"
+              onClick={() => {
+                if (!uploadFile) return
+                uploadMutation.mutate({
+                  file: uploadFile,
+                  artistId: selectedArtistId,
+                  albumId: selectedAlbumId,
+                  trackTitle,
+                  explicit,
+                  lyrics: uploadLyrics || undefined,
+                })
+              }}
+            >
+              {uploadMutation.isPending ? 'Uploading…' : 'Upload to Staging'}
+            </button>
+          )}
         </div>
       </form>
 
@@ -511,6 +615,12 @@ export default function CreateMusicPanel() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {previewError && (
+          <div className="border-t border-border bg-surface/30 px-4 py-3">
+            <p className="text-sm text-red-300">{previewError}</p>
           </div>
         )}
 

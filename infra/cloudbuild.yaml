@@ -1,0 +1,167 @@
+# Cloud Build pipeline for MyndralAI.
+#
+# Triggered on push to `main`.  Builds four container images (api, web, studio,
+# migrate), pushes them to Artifact Registry, runs pending SQL migrations via a
+# Cloud Run Job, then deploys the three Cloud Run services.
+#
+# Substitutions — configure these in the Cloud Build trigger UI:
+#   _REGION         — GCP region, e.g. us-central1
+#   _AR_REPO        — Artifact Registry repo name, e.g. myndral
+#   _API_SERVICE    — Cloud Run service name for the API, e.g. myndral-api
+#   _WEB_SERVICE    — Cloud Run service name for the web app, e.g. myndral-web
+#   _STUDIO_SERVICE — Cloud Run service name for internal studio, e.g. myndral-studio
+#   _MIGRATE_JOB    — Cloud Run Job name for DB migrations, e.g. myndral-migrate
+#   _API_URL        — Public HTTPS URL of the deployed API (baked into frontend
+#                     JS as VITE_API_URL), e.g. https://myndral-api-xxxx-uc.a.run.app
+#
+# $PROJECT_ID is injected automatically by Cloud Build — no need to set it.
+
+substitutions:
+  _REGION: us-central1
+  _AR_REPO: myndral
+  _API_SERVICE: myndral-api
+  _WEB_SERVICE: myndral-web
+  _STUDIO_SERVICE: myndral-studio
+  _MIGRATE_JOB: myndral-migrate
+  _API_URL: ''   # override in trigger once you have the API service URL
+
+options:
+  machineType: E2_HIGHCPU_8   # four parallel builds without memory pressure
+
+steps:
+
+  # ── 1. Build all images in parallel ──────────────────────────────────────────
+  - id: build-migrate
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file=infra/migrate/Dockerfile
+      - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/migrate:$SHORT_SHA
+      - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/migrate:latest
+      - --cache-from=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/migrate:latest
+      - .
+    waitFor: ['-']
+
+  - id: build-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file=apps/api/Dockerfile
+      - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/api:$SHORT_SHA
+      - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/api:latest
+      - --cache-from=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/api:latest
+      - .
+    waitFor: ['-']
+
+  - id: build-web
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file=apps/web/Dockerfile
+      - --build-arg=VITE_API_URL=$_API_URL
+      - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/web:$SHORT_SHA
+      - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/web:latest
+      - --cache-from=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/web:latest
+      - .
+    waitFor: ['-']
+
+  - id: build-studio
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file=apps/internal-web/Dockerfile
+      - --build-arg=VITE_API_URL=$_API_URL
+      - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/studio:$SHORT_SHA
+      - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/studio:latest
+      - --cache-from=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/studio:latest
+      - .
+    waitFor: ['-']
+
+  # ── 2. Push all images ───────────────────────────────────────────────────────
+  - id: push-migrate
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/migrate']
+    waitFor: [build-migrate]
+
+  - id: push-api
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/api']
+    waitFor: [build-api]
+
+  - id: push-web
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/web']
+    waitFor: [build-web]
+
+  - id: push-studio
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/studio']
+    waitFor: [build-studio]
+
+  # ── 3. Update the migration job image, then run pending migrations ────────────
+  - id: update-migrate-job
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - update
+      - $_MIGRATE_JOB
+      - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/migrate:$SHORT_SHA
+      - --region=$_REGION
+    waitFor: [push-migrate]
+
+  - id: run-migrations
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - execute
+      - $_MIGRATE_JOB
+      - --region=$_REGION
+      - --wait   # blocks; non-zero exit fails the build before any service is updated
+    waitFor: [update-migrate-job]
+
+  # ── 4. Deploy Cloud Run services ─────────────────────────────────────────────
+  - id: deploy-api
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_API_SERVICE
+      - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/api:$SHORT_SHA
+      - --region=$_REGION
+      - --platform=managed
+    waitFor: [run-migrations]   # API only goes live after DB is up-to-date
+
+  - id: deploy-web
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_WEB_SERVICE
+      - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/web:$SHORT_SHA
+      - --region=$_REGION
+      - --platform=managed
+    waitFor: [push-web]   # purely static; no DB dependency
+
+  - id: deploy-studio
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_STUDIO_SERVICE
+      - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/studio:$SHORT_SHA
+      - --region=$_REGION
+      - --platform=managed
+    waitFor: [push-studio]
+
+images:
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/api:$SHORT_SHA'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/web:$SHORT_SHA'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/studio:$SHORT_SHA'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/migrate:$SHORT_SHA'

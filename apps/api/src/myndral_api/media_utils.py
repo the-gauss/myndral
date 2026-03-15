@@ -8,11 +8,26 @@ from urllib.parse import unquote, urlparse
 
 from mutagen import File as MutagenFile
 
+import os
+
 LOCAL_STORAGE_PREFIXES = ("data/", "/data/", "file://")
 REMOTE_STORAGE_PREFIXES = ("http://", "https://", "s3://", "gs://")
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = (REPO_ROOT / "data").resolve()
+# DATA_DIR can be overridden by the DATA_DIR environment variable.
+# In dev, it defaults to <monorepo-root>/data (4 levels up from this file).
+# In Docker, the monorepo depth doesn't exist, so we fall back to /tmp/myndral-data
+# which is writable on Cloud Run's ephemeral filesystem.  All persistent storage
+# goes to GCS in production; the local path is only used when GCS is not configured.
+_data_dir_env = os.environ.get("DATA_DIR", "")
+if _data_dir_env:
+    DATA_DIR = Path(_data_dir_env).resolve()
+else:
+    try:
+        DATA_DIR = (Path(__file__).resolve().parents[4] / "data").resolve()
+    except IndexError:
+        DATA_DIR = Path("/tmp/myndral-data").resolve()
+
+REPO_ROOT = DATA_DIR.parent
 
 
 def is_local_storage_url(value: str | None) -> bool:
@@ -23,25 +38,53 @@ def is_remote_storage_url(value: str | None) -> bool:
     return bool(value and value.startswith(REMOTE_STORAGE_PREFIXES))
 
 
+def gcs_to_public_https(storage_url: str) -> str:
+    """Convert ``gs://bucket/object`` → ``https://storage.googleapis.com/bucket/object``.
+
+    Buckets with public read access (allUsers objectViewer) are served at this
+    URL without any authentication headers.  Only call this for public-read
+    objects — images and generated audio qualify; raw upload temp files do not.
+    """
+    if storage_url.startswith("gs://"):
+        return "https://storage.googleapis.com/" + storage_url[5:]
+    return storage_url
+
+
 def normalize_audio_url(track_id: str, storage_url: str | None) -> str | None:
+    """Return a browser-usable audio URL for the given storage URL.
+
+    - Local data/ paths → proxy through /v1/stream/{track_id} (dev).
+    - GCS gs:// paths   → also proxy through /v1/stream/{track_id} so that
+      the stream endpoint can enforce published-status access checks.
+    - Remote http/https → pass through unchanged (CDN / external host).
+    """
     if not storage_url:
         return None
-    if is_local_storage_url(storage_url):
+    if is_local_storage_url(storage_url) or storage_url.startswith("gs://"):
         return f"/v1/stream/{track_id}"
     return storage_url
 
 
 def normalize_image_url(storage_url: str | None) -> str | None:
-    """Convert a local data/images/... storage path to a routable /v1/images/... URL.
+    """Return a browser-usable URL for a locally stored or GCS image.
 
-    Remote URLs (http/https/s3/gs) are returned unchanged.  This mirrors the
-    pattern used by normalize_audio_url for audio files.
+    - Local data/images/ paths  → /v1/images/<filename>  (dev StaticFiles / prod proxy).
+    - GCS gs://bucket/images/f  → /v1/images/<filename>  (proxied by the API; avoids
+      the need for a public-read GCS bucket, which org policies often block).
+    - Remote http/https         → unchanged (CDN / external host).
     """
     if not storage_url:
         return None
     if storage_url.startswith(("data/images/", "/data/images/")):
         filename = storage_url.lstrip("/").removeprefix("data/images/")
         return f"/v1/images/{filename}"
+    if storage_url.startswith("gs://"):
+        # Strip "gs://bucket/" prefix, then strip the leading "images/" segment
+        # so the result is /v1/images/<filename>, matching the proxy route.
+        object_path = storage_url[5:].split("/", 1)[1] if "/" in storage_url[5:] else ""
+        if object_path.startswith("images/"):
+            object_path = object_path[len("images/"):]
+        return f"/v1/images/{object_path}"
     return storage_url
 
 

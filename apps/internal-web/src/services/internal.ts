@@ -7,7 +7,10 @@ import type {
   MusicGenerateRequest,
   MusicGenerationJob,
   LoginResponse,
+  Notification,
+  NotificationList,
   Paginated,
+  StagingTrack,
   TrackItem,
   ContentStatus,
   AlbumType,
@@ -152,3 +155,28 @@ export const fetchGeneratedMusicFile = (storageUrl: string) =>
     params: { storageUrl },
     responseType: 'blob',
   }).then((r) => r.data)
+
+// ── Staging ───────────────────────────────────────────────────────────────────
+
+export const listStaging = (params?: { limit?: number; offset?: number }) =>
+  api.get<Paginated<StagingTrack>>('/v1/internal/staging', { params }).then((r) => r.data)
+
+export const approveTrack = (trackId: string) =>
+  api.post<{ trackId: string; action: string }>(`/v1/internal/staging/${trackId}/approve`).then((r) => r.data)
+
+export const rejectTrack = (trackId: string) =>
+  api.post<{ trackId: string; action: string }>(`/v1/internal/staging/${trackId}/reject`).then((r) => r.data)
+
+export const sendTrackForReview = (trackId: string, notes: string) =>
+  api.post<{ trackId: string; action: string }>(`/v1/internal/staging/${trackId}/review`, { notes }).then((r) => r.data)
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export const listNotifications = (params?: { unreadOnly?: boolean; limit?: number; offset?: number }) =>
+  api.get<NotificationList>('/v1/internal/notifications', { params }).then((r) => r.data)
+
+export const markNotificationRead = (notificationId: string) =>
+  api.patch<Notification>(`/v1/internal/notifications/${notificationId}/read`).then((r) => r.data)
+
+export const markAllNotificationsRead = () =>
+  api.post<{ markedRead: number }>('/v1/internal/notifications/read-all').then((r) => r.data)

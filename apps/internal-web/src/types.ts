@@ -136,6 +136,12 @@ export interface MusicPromptInput {
 }
 
 export interface MusicGenerateRequest {
+  // Catalog linking
+  artistId: string
+  albumId: string
+  trackTitle: string
+  explicit?: boolean
+  // Generation params
   prompt: string
   promptWeight?: number
   weightedPrompts?: MusicPromptInput[]
@@ -179,4 +185,45 @@ export interface LoginResponse {
   tokenType: 'bearer'
   expiresIn: number
   user: InternalUser
+}
+
+export type StagingReviewAction = 'sent_for_review' | 'approved' | 'rejected'
+
+export interface StagingReview {
+  action: StagingReviewAction
+  notes: string | null
+  reviewerName: string | null
+  createdAt: string | null
+}
+
+export interface StagingTrack {
+  id: string
+  title: string
+  status: ContentStatus
+  explicit: boolean
+  durationMs: number | null
+  albumId: string
+  albumTitle: string
+  albumType: AlbumType
+  primaryArtistId: string
+  primaryArtistName: string
+  createdById: string
+  createdByName: string
+  createdByRole: UserRole
+  outputStorageUrl: string | null
+  createdAt: string
+  latestReview: StagingReview | null
+}
+
+export interface Notification {
+  id: string
+  trackId: string | null
+  trackTitle: string | null
+  message: string
+  isRead: boolean
+  createdAt: string
+}
+
+export interface NotificationList extends Paginated<Notification> {
+  unreadCount: number
 }

@@ -2,6 +2,8 @@ import type { AxiosError } from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FormEvent, useMemo, useState } from 'react'
 import CreateMusicPanel from '../components/CreateMusicPanel'
+import NotificationsBell from '../components/NotificationsBell'
+import StagingPanel from '../components/StagingPanel'
 import {
   createAlbum,
   createArtist,
@@ -18,7 +20,7 @@ import {
 import { useAuthStore } from '../store/authStore'
 import type { AlbumType, AudioInspection, ContentStatus, TrackAudioFile } from '../types'
 
-type Tab = 'artists' | 'albums' | 'tracks' | 'create_music'
+type Tab = 'artists' | 'albums' | 'tracks' | 'create_music' | 'staging'
 type StatusFilter = ContentStatus | 'all'
 
 const statusOptions: ContentStatus[] = ['draft', 'review', 'published', 'archived']
@@ -60,6 +62,13 @@ export default function Dashboard() {
   const clearSession = useAuthStore((s) => s.clearSession)
 
   const [tab, setTab] = useState<Tab>('artists')
+  // Track ID to highlight in staging (set when clicking a notification)
+  const [stagingHighlightId, setStagingHighlightId] = useState<string | null>(null)
+
+  function navigateToTrack(trackId: string) {
+    setTab('staging')
+    setStagingHighlightId(trackId)
+  }
 
   // Search/filter controls so existing catalog can be explored on-demand.
   const [artistSearch, setArtistSearch] = useState('')
@@ -387,6 +396,7 @@ export default function Dashboard() {
     if (tab === 'artists') return 'Artist Management'
     if (tab === 'albums') return 'Album Management'
     if (tab === 'create_music') return 'Create Songs'
+    if (tab === 'staging') return 'Staging'
     return 'Track Management'
   }, [tab])
 
@@ -421,6 +431,12 @@ export default function Dashboard() {
           >
             Create Songs
           </button>
+          <button
+            onClick={() => { setTab('staging'); setStagingHighlightId(null) }}
+            className={`w-full rounded-md px-3 py-2 text-left text-sm ${tab === 'staging' ? 'bg-accent text-accent-fg' : 'hover:bg-surface'}`}
+          >
+            Staging
+          </button>
         </nav>
 
         <div className="mt-auto pt-12">
@@ -437,11 +453,16 @@ export default function Dashboard() {
       </aside>
 
       <main className="overflow-y-auto p-6 space-y-6">
-        <header>
-          <h2 className="text-2xl font-semibold">{toolbarTitle}</h2>
-          <p className="text-sm text-muted-fg">
-            Add and manage catalog entries. Existing records are searchable below for quick edits.
-          </p>
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold">{toolbarTitle}</h2>
+            <p className="text-sm text-muted-fg">
+              Add and manage catalog entries. Existing records are searchable below for quick edits.
+            </p>
+          </div>
+          <div className="shrink-0 pt-1">
+            <NotificationsBell onNavigateToTrack={navigateToTrack} />
+          </div>
         </header>
 
         {loading && <p className="text-sm text-muted-fg">Loading catalog metadata...</p>}
@@ -949,6 +970,10 @@ export default function Dashboard() {
         )}
 
         {tab === 'create_music' && <CreateMusicPanel />}
+
+        {tab === 'staging' && (
+          <StagingPanel highlightTrackId={stagingHighlightId} />
+        )}
       </main>
     </div>
   )

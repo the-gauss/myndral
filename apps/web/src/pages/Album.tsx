@@ -1,15 +1,21 @@
-import { Heart, Play } from 'lucide-react'
+import { Download, Heart, Play } from 'lucide-react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import TrackRow from '../components/cards/TrackRow'
+import ExportModal from '../components/ui/ExportModal'
 import Skeleton from '../components/ui/Skeleton'
 import { useAlbum, useAlbumTracks } from '../hooks/useCatalog'
 import { usePlayerStore } from '../store/playerStore'
+import { useUserStore } from '../store/userStore'
 
 export default function Album() {
   const { id } = useParams<{ id: string }>()
   const { data: album, isLoading: albumLoading } = useAlbum(id!)
   const { data: tracks } = useAlbumTracks(id!)
   const play = usePlayerStore((s) => s.play)
+  const isPremium = useUserStore((s) => s.isPremium)
+  const isAuthenticated = useUserStore((s) => s.isAuthenticated)
+  const [exportOpen, setExportOpen] = useState(false)
 
   function playAlbum() {
     if (tracks?.items.length) play(tracks.items[0], tracks.items)
@@ -71,6 +77,15 @@ export default function Album() {
           <button className="p-2 rounded-full text-muted-fg hover:text-foreground transition-colors">
             <Heart size={20} />
           </button>
+          {isAuthenticated && isPremium && album && (
+            <button
+              onClick={() => setExportOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border text-sm text-muted-fg hover:text-foreground hover:border-foreground/40 transition-colors"
+            >
+              <Download size={14} />
+              Export Album
+            </button>
+          )}
         </div>
 
         {/* Track list */}
@@ -87,6 +102,13 @@ export default function Album() {
           </section>
         )}
       </div>
+
+      {exportOpen && album && (
+        <ExportModal
+          target={{ kind: 'album', id: album.id, title: album.title }}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </div>
   )
 }

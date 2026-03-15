@@ -6,10 +6,13 @@ from myndral_api.routers import (
     albums,
     artists,
     auth,
+    exports,
     health,
     internal,
+    notifications,
     playlists,
     search,
+    staging,
     stream,
     tracks,
     users,
@@ -39,12 +42,15 @@ app.add_middleware(
 # ── Routers ───────────────────────────────────────────────────────────────────
 
 app.include_router(health.router)
-app.include_router(auth.router,      prefix="/v1/auth",      tags=["auth"])
-app.include_router(users.router,     prefix="/v1/users",     tags=["users"])
-app.include_router(internal.router,  prefix="/v1/internal",  tags=["internal"])
-app.include_router(artists.router,   prefix="/v1/artists",   tags=["artists"])
-app.include_router(albums.router,    prefix="/v1/albums",    tags=["albums"])
-app.include_router(tracks.router,    prefix="/v1/tracks",    tags=["tracks"])
-app.include_router(playlists.router, prefix="/v1/playlists", tags=["playlists"])
-app.include_router(search.router,    prefix="/v1/search",    tags=["search"])
-app.include_router(stream.router,    prefix="/v1/stream",    tags=["stream"])
+app.include_router(auth.router,          prefix="/v1/auth",          tags=["auth"])
+app.include_router(users.router,         prefix="/v1/users",         tags=["users"])
+app.include_router(internal.router,      prefix="/v1/internal",      tags=["internal"])
+app.include_router(staging.router,       prefix="/v1/internal",      tags=["staging"])
+app.include_router(notifications.router, prefix="/v1/internal",      tags=["notifications"])
+app.include_router(artists.router,       prefix="/v1/artists",       tags=["artists"])
+app.include_router(albums.router,        prefix="/v1/albums",        tags=["albums"])
+app.include_router(tracks.router,        prefix="/v1/tracks",        tags=["tracks"])
+app.include_router(playlists.router,     prefix="/v1/playlists",     tags=["playlists"])
+app.include_router(search.router,        prefix="/v1/search",        tags=["search"])
+app.include_router(stream.router,        prefix="/v1/stream",        tags=["stream"])
+app.include_router(exports.router,       prefix="/v1",               tags=["exports"])

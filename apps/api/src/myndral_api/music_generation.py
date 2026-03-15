@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 from elevenlabs.client import AsyncElevenLabs
+from elevenlabs.core.api_error import ApiError as ElevenLabsApiError
 from elevenlabs.types import MusicPrompt, SongSection
 
 from myndral_api.media_utils import (
@@ -448,6 +449,15 @@ async def generate_song_file(
                 force_instrumental=force_instrumental if prompt else None,
                 with_timestamps=with_timestamps,
             )
+        except ElevenLabsApiError as exc:
+            if exc.status_code == 402:
+                raise MusicGenerationError(
+                    "ElevenLabs Music API requires a paid plan. "
+                    "Upgrade your ElevenLabs account to enable music generation via the API."
+                ) from exc
+            raise MusicGenerationError(
+                f"ElevenLabs returned an error (HTTP {exc.status_code}): {exc.body}"
+            ) from exc
         except Exception as exc:
             raise MusicGenerationError(f"ElevenLabs request failed: {exc}") from exc
 

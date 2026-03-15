@@ -1176,23 +1176,31 @@ RETURNING id::text
             seed=payload.seed,
         )
     except MusicGenerationError as exc:
-        await db.execute(
-            text(
-                """
+        error_detail = str(exc)
+        # Best-effort: mark the job as failed. If the DB update itself fails
+        # (e.g. session in a bad state) we still want to return the real error
+        # to the caller rather than letting that secondary failure cause a 500.
+        try:
+            await db.rollback()
+            await db.execute(
+                text(
+                    """
 UPDATE generation_jobs
 SET status = 'failed',
     failed_at = now(),
     error_message = :error_message
 WHERE id = CAST(:job_id AS uuid)
 """
-            ),
-            {
-                "job_id": job_id,
-                "error_message": str(exc)[:2000],
-            },
-        )
-        await db.commit()
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+                ),
+                {
+                    "job_id": job_id,
+                    "error_message": error_detail[:2000],
+                },
+            )
+            await db.commit()
+        except Exception:
+            pass  # Job status update is non-critical; surface the real error below
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=error_detail) from exc
 
     output_metadata: dict[str, Any] = {
         "storageUrl": generated.storage_url,

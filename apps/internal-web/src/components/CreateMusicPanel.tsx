@@ -23,8 +23,19 @@ function parseOptionalInt(raw: string): number | undefined {
 }
 
 function asErrorMessage(error: unknown, fallback: string): string {
-  const axiosError = error as AxiosError<{ detail?: string }>
-  return axiosError.response?.data?.detail ?? fallback
+  const axiosError = error as AxiosError<{ detail?: unknown }>
+  const detail = axiosError?.response?.data?.detail
+  // FastAPI HTTPException: detail is a plain string
+  if (typeof detail === 'string' && detail.trim()) return detail.trim()
+  // FastAPI 422 validation error: detail is an array of {msg, loc, type}
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = (detail[0] as { msg?: string })?.msg
+    return first ? `Validation error: ${first}` : fallback
+  }
+  // Fallback: if the proxy returned a plain-text body (not HTML)
+  const raw: unknown = axiosError?.response?.data
+  if (typeof raw === 'string' && raw.trim() && !raw.trim().startsWith('<')) return raw.trim()
+  return fallback
 }
 
 function formatDate(value: string | null | undefined): string {

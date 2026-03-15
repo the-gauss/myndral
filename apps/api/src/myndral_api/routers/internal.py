@@ -1219,18 +1219,21 @@ WHERE id = CAST(:job_id AS uuid)
     }
 
     # ── Auto-create track in 'review' (staging) status ───────────────────────
-    track_num_row = await db.execute(
-        text("SELECT COALESCE(MAX(track_number), 0) + 1 AS next_num FROM tracks WHERE album_id = CAST(:album_id AS uuid)"),
-        {"album_id": payload.album_id},
-    )
-    next_track_number = int(track_num_row.scalar_one())
+    # Wrap in try/except so any DB issue surfaces as a proper 502 rather than
+    # an opaque 500, and the job is marked failed regardless.
+    try:
+        track_num_row = await db.execute(
+            text("SELECT COALESCE(MAX(track_number), 0) + 1 AS next_num FROM tracks WHERE album_id = CAST(:album_id AS uuid)"),
+            {"album_id": payload.album_id},
+        )
+        next_track_number = int(track_num_row.scalar_one())
 
-    duration_ms = int(generated.duration_ms or 0)
-    audio_format = guess_audio_format(generated.storage_url) or "mp3"
+        duration_ms = int(generated.duration_ms or 0)
+        audio_format = guess_audio_format(generated.storage_url) or "mp3"
 
-    track_insert = await db.execute(
-        text(
-            """
+        track_insert = await db.execute(
+            text(
+                """
 INSERT INTO tracks (
   title, album_id, primary_artist_id,
   track_number, disc_number, duration_ms,
@@ -1243,35 +1246,35 @@ VALUES (
 )
 RETURNING id::text
 """
-        ),
-        {
-            "title": payload.track_title.strip(),
-            "album_id": payload.album_id,
-            "artist_id": payload.artist_id,
-            "track_number": next_track_number,
-            "duration_ms": duration_ms,
-            "explicit": payload.explicit,
-            "created_by": current_user["id"],
-        },
-    )
-    track_id = str(track_insert.scalar_one())
+            ),
+            {
+                "title": payload.track_title.strip(),
+                "album_id": payload.album_id,
+                "artist_id": payload.artist_id,
+                "track_number": next_track_number,
+                "duration_ms": duration_ms,
+                "explicit": payload.explicit,
+                "created_by": current_user["id"],
+            },
+        )
+        track_id = str(track_insert.scalar_one())
 
-    # Primary artist link
-    await db.execute(
-        text(
-            """
+        # Primary artist link
+        await db.execute(
+            text(
+                """
 INSERT INTO track_artists (track_id, artist_id, role, display_order)
 VALUES (CAST(:track_id AS uuid), CAST(:artist_id AS uuid), 'primary', 0)
 ON CONFLICT DO NOTHING
 """
-        ),
-        {"track_id": track_id, "artist_id": payload.artist_id},
-    )
+            ),
+            {"track_id": track_id, "artist_id": payload.artist_id},
+        )
 
-    # Audio file
-    await db.execute(
-        text(
-            """
+        # Audio file
+        await db.execute(
+            text(
+                """
 INSERT INTO track_audio_files (
   track_id, quality, format, storage_url,
   bitrate_kbps, sample_rate_hz, channels,
@@ -1283,23 +1286,23 @@ VALUES (
   :file_size_bytes, :duration_ms
 )
 """
-        ),
-        {
-            "track_id": track_id,
-            "format": audio_format,
-            "storage_url": generated.storage_url,
-            "bitrate_kbps": None,
-            "sample_rate_hz": generated.sample_rate_hz,
-            "channels": generated.channels or 2,
-            "file_size_bytes": generated.file_size_bytes,
-            "duration_ms": duration_ms or None,
-        },
-    )
+            ),
+            {
+                "track_id": track_id,
+                "format": audio_format,
+                "storage_url": generated.storage_url,
+                "bitrate_kbps": None,
+                "sample_rate_hz": generated.sample_rate_hz,
+                "channels": generated.channels or 2,
+                "file_size_bytes": generated.file_size_bytes,
+                "duration_ms": duration_ms or None,
+            },
+        )
 
-    # Recompute album track_count
-    await db.execute(
-        text(
-            """
+        # Recompute album track_count
+        await db.execute(
+            text(
+                """
 UPDATE albums
 SET track_count = (
   SELECT count(*) FROM tracks
@@ -1308,43 +1311,62 @@ SET track_count = (
 )
 WHERE id = CAST(:album_id AS uuid)
 """
-        ),
-        {"album_id": payload.album_id},
-    )
+            ),
+            {"album_id": payload.album_id},
+        )
 
-    # Optionally store generated lyrics on the track
-    if generated.lyrics:
-        await db.execute(
-            text(
-                """
-INSERT INTO track_lyrics (track_id, content, language, has_timestamps)
+        # Optionally store generated lyrics on the track
+        if generated.lyrics:
+            await db.execute(
+                text(
+                    """
+INSERT INTO lyrics (track_id, content, language, has_timestamps)
 VALUES (CAST(:track_id AS uuid), :content, 'en', :has_timestamps)
 ON CONFLICT (track_id) DO UPDATE
   SET content = EXCLUDED.content, has_timestamps = EXCLUDED.has_timestamps
 """
-            ),
-            {
-                "track_id": track_id,
-                "content": generated.lyrics,
-                "has_timestamps": payload.with_timestamps and bool(generated.words_timestamps),
-            },
-        )
+                ),
+                {
+                    "track_id": track_id,
+                    "content": generated.lyrics,
+                    "has_timestamps": payload.with_timestamps and bool(generated.words_timestamps),
+                },
+            )
 
-    output_metadata["trackId"] = track_id
+        output_metadata["trackId"] = track_id
 
-    await db.execute(
-        text(
-            """
+        await db.execute(
+            text(
+                """
 UPDATE generation_jobs
 SET status = 'completed',
     completed_at = now(),
     output_metadata = CAST(:output_metadata AS jsonb)
 WHERE id = CAST(:job_id AS uuid)
 """
-        ),
-        {"job_id": job_id, "output_metadata": json.dumps(output_metadata)},
-    )
-    await db.commit()
+            ),
+            {"job_id": job_id, "output_metadata": json.dumps(output_metadata)},
+        )
+        await db.commit()
+
+    except Exception as db_exc:
+        detail = f"Track catalog write failed after generation: {db_exc}"
+        try:
+            await db.rollback()
+            await db.execute(
+                text(
+                    """
+UPDATE generation_jobs
+SET status = 'failed', failed_at = now(), error_message = :msg
+WHERE id = CAST(:job_id AS uuid)
+"""
+                ),
+                {"job_id": job_id, "msg": detail[:2000]},
+            )
+            await db.commit()
+        except Exception:
+            pass
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail) from db_exc
 
     result = await db.execute(
         text(

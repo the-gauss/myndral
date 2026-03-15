@@ -105,6 +105,45 @@
   --font-body: var(--font-serif);
 }
 
+/* ── Theme transition animations ─────────────────────────────────────────── */
+
+@keyframes vt-fade-out {
+  to { opacity: 0; }
+}
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+}
+
+/* Outgoing frame bleaches slightly warm before vanishing */
+@keyframes vt-warm-out {
+  to { opacity: 0; filter: brightness(1.08) sepia(0.15); }
+}
+
+/* Incoming Minkowski frame blooms in from overexposed warmth —
+   like sunlight developing on parchment */
+@keyframes vt-warm-in {
+  from { opacity: 0; filter: brightness(1.4) saturate(0.4) sepia(0.3); }
+  to   { opacity: 1; filter: brightness(1)   saturate(1)   sepia(0);   }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Default: clean fade for light ↔ dark */
+  ::view-transition-old(root) {
+    animation: 220ms ease both vt-fade-out;
+  }
+  ::view-transition-new(root) {
+    animation: 300ms ease both vt-fade-in;
+  }
+
+  /* Minkowski: slow warm emergence */
+  [data-theme-target="paper"]::view-transition-old(root) {
+    animation: 500ms ease both vt-warm-out;
+  }
+  [data-theme-target="paper"]::view-transition-new(root) {
+    animation: 1100ms cubic-bezier(0.16, 1, 0.3, 1) both vt-warm-in;
+  }
+}
+
 /* ── Base ─────────────────────────────────────────────────────────────────── */
 @layer base {
   html, body, #root {

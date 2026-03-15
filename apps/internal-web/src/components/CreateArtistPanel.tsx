@@ -4,13 +4,24 @@
  * Flow: fill form → Preview & Submit → confirmation card → submit to staging.
  * All created artists go directly to status='review'; status transitions happen
  * exclusively through staging endpoints.
+ *
+ * Catalog actions (non-archived artists):
+ *  - Edit: available to all roles. Artist name is immutable after creation.
+ *  - Revoke: admin-only, published artists only. Pulls the artist back to staging.
  */
 import type { AxiosError } from 'axios'
 import { FormEvent, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createArtist, listArtists, listGenres } from '../services/internal'
+import {
+  createArtist,
+  listArtists,
+  listGenres,
+  revokeArtist as revokeArtistApi,
+  updateArtist,
+} from '../services/internal'
 import type { ArtistItem, ContentStatus } from '../types'
 import ImageInput from './ImageInput'
+import { useAuthStore } from '../store/authStore'
 
 function asErrorMessage(error: unknown, fallback: string): string {
   const axiosError = error as AxiosError<{ detail?: unknown }>
@@ -55,8 +66,21 @@ const EMPTY_DRAFT: ArtistDraft = {
   personaPrompt: '', styleTags: '', genreIds: [],
 }
 
+// Name is excluded — it is immutable after creation.
+interface EditArtistForm {
+  slug: string
+  bio: string
+  imageUrl: string
+  headerImageUrl: string
+  personaPrompt: string
+  styleTags: string
+  genreIds: string[]
+}
+
 export default function CreateArtistPanel() {
   const queryClient = useQueryClient()
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role === 'admin'
 
   // Form state
   const [draft, setDraft] = useState<ArtistDraft>(EMPTY_DRAFT)
@@ -68,6 +92,14 @@ export default function CreateArtistPanel() {
   // Catalog browse
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<ContentStatus | 'all'>('all')
+
+  // Edit modal
+  const [editTarget, setEditTarget] = useState<ArtistItem | null>(null)
+  const [editForm, setEditForm] = useState<EditArtistForm | null>(null)
+
+  // Revoke confirmation
+  const [revokeTarget, setRevokeTarget] = useState<ArtistItem | null>(null)
+  const [revokeNotes, setRevokeNotes] = useState('')
 
   const genres = useQuery({ queryKey: ['genres'], queryFn: listGenres })
 
@@ -92,6 +124,56 @@ export default function CreateArtistPanel() {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, form }: { id: string; form: EditArtistForm }) =>
+      updateArtist(id, {
+        slug: form.slug.trim() || undefined,
+        bio: form.bio.trim() || undefined,
+        imageUrl: form.imageUrl.trim() || undefined,
+        headerImageUrl: form.headerImageUrl.trim() || undefined,
+        personaPrompt: form.personaPrompt.trim() || undefined,
+        styleTags: parseCsv(form.styleTags),
+        genreIds: form.genreIds,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artists'] })
+      queryClient.invalidateQueries({ queryKey: ['artists-options'] })
+      setEditTarget(null)
+      setEditForm(null)
+    },
+  })
+
+  const revokeMutation = useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes: string }) =>
+      revokeArtistApi(id, notes.trim() || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artists'] })
+      queryClient.invalidateQueries({ queryKey: ['staging'] })
+      setRevokeTarget(null)
+      setRevokeNotes('')
+    },
+  })
+
+  function openEditArtist(artist: ArtistItem) {
+    setEditTarget(artist)
+    setEditForm({
+      slug: artist.slug,
+      bio: artist.bio ?? '',
+      imageUrl: artist.imageUrl ?? '',
+      headerImageUrl: artist.headerImageUrl ?? '',
+      personaPrompt: artist.personaPrompt ?? '',
+      styleTags: artist.styleTags.join(', '),
+      genreIds: artist.genreIds,
+    })
+    updateMutation.reset()
+  }
+
+  function closeEdit() {
+    setEditTarget(null)
+    setEditForm(null)
+    updateMutation.reset()
+  }
+
   function set(key: keyof ArtistDraft) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       setDraft((d) => ({ ...d, [key]: e.target.value }))
@@ -100,6 +182,11 @@ export default function CreateArtistPanel() {
 
   function handleGenreChange(e: React.ChangeEvent<HTMLSelectElement>) {
     setDraft((d) => ({ ...d, genreIds: Array.from(e.target.selectedOptions).map((o) => o.value) }))
+  }
+
+  function handleEditGenreChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const selected = Array.from(e.target.selectedOptions).map((o) => o.value)
+    setEditForm((f) => f && ({ ...f, genreIds: selected }))
   }
 
   function handlePreview(e: FormEvent<HTMLFormElement>) {
@@ -343,6 +430,7 @@ export default function CreateArtistPanel() {
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Portrait</th>
                   <th className="px-3 py-2">Updated</th>
+                  <th className="px-3 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -361,6 +449,28 @@ export default function CreateArtistPanel() {
                     <td className="px-3 py-2 text-xs text-muted-fg">
                       {new Date(artist.updatedAt).toLocaleString()}
                     </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        {/* Edit is available for any non-archived artist */}
+                        {artist.status !== 'archived' && (
+                          <button
+                            onClick={() => openEditArtist(artist)}
+                            className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {/* Revoke is admin-only and only applicable to published artists */}
+                        {isAdmin && artist.status === 'published' && (
+                          <button
+                            onClick={() => { setRevokeTarget(artist); setRevokeNotes(''); revokeMutation.reset() }}
+                            className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -372,6 +482,172 @@ export default function CreateArtistPanel() {
           <p className="text-sm text-muted-fg">No artists found.</p>
         )}
       </div>
+
+      {/* ── Edit artist modal ───────────────────────────────────────────────── */}
+      {editTarget && editForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-background shadow-2xl">
+            <div className="flex items-start justify-between border-b border-border px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold">Edit artist</h2>
+                <p className="mt-0.5 text-xs text-muted-fg">Artist name cannot be changed after creation.</p>
+              </div>
+              <button
+                onClick={closeEdit}
+                className="ml-4 mt-0.5 text-muted-fg hover:text-foreground"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Name — read-only, clearly labelled as immutable */}
+              <div className="rounded-md border border-border/60 bg-surface/30 px-3 py-2 text-sm">
+                <p className="text-xs text-muted-fg mb-0.5">Name (immutable)</p>
+                <p className="font-medium">{editTarget.name}</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <label className="text-sm">
+                  Slug
+                  <input
+                    className="mt-1 w-full rounded-md bg-surface border border-border px-3 py-2"
+                    value={editForm.slug}
+                    onChange={(e) => setEditForm((f) => f && ({ ...f, slug: e.target.value }))}
+                  />
+                </label>
+                <div />
+                <div>
+                  <ImageInput
+                    label="Portrait image"
+                    value={editForm.imageUrl}
+                    onChange={(url) => setEditForm((f) => f && ({ ...f, imageUrl: url }))}
+                    placeholder="data/images/artist.jpg  or  https://..."
+                  />
+                </div>
+                <div>
+                  <ImageInput
+                    label="Header image"
+                    value={editForm.headerImageUrl}
+                    onChange={(url) => setEditForm((f) => f && ({ ...f, headerImageUrl: url }))}
+                    placeholder="data/images/artist-header.jpg"
+                  />
+                </div>
+                <label className="text-sm lg:col-span-2">
+                  Bio
+                  <textarea
+                    className="mt-1 w-full rounded-md bg-surface border border-border px-3 py-2 min-h-24 resize-y"
+                    value={editForm.bio}
+                    onChange={(e) => setEditForm((f) => f && ({ ...f, bio: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm lg:col-span-2">
+                  Persona prompt
+                  <textarea
+                    className="mt-1 w-full rounded-md bg-surface border border-border px-3 py-2 min-h-20 resize-y"
+                    value={editForm.personaPrompt}
+                    onChange={(e) => setEditForm((f) => f && ({ ...f, personaPrompt: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm">
+                  Style tags <span className="text-muted-fg">(comma-separated)</span>
+                  <input
+                    className="mt-1 w-full rounded-md bg-surface border border-border px-3 py-2"
+                    value={editForm.styleTags}
+                    onChange={(e) => setEditForm((f) => f && ({ ...f, styleTags: e.target.value }))}
+                    placeholder="ambient, electronic, cinematic"
+                  />
+                </label>
+                <label className="text-sm">
+                  Genres
+                  <select
+                    multiple
+                    className="mt-1 w-full rounded-md bg-surface border border-border px-3 py-2 min-h-28"
+                    value={editForm.genreIds}
+                    onChange={handleEditGenreChange}
+                  >
+                    {genreList.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {updateMutation.error && (
+                <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {asErrorMessage(updateMutation.error, 'Failed to save changes.')}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => updateMutation.mutate({ id: editTarget.id, form: editForm })}
+                  disabled={updateMutation.isPending}
+                  className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-60"
+                >
+                  {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+                </button>
+                <button
+                  onClick={closeEdit}
+                  disabled={updateMutation.isPending}
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Revoke confirmation ─────────────────────────────────────────────── */}
+      {revokeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl border border-red-500/30 bg-background shadow-2xl">
+            <div className="p-5 space-y-4">
+              <h2 className="text-base font-semibold text-red-300">Revoke published artist</h2>
+              <p className="text-sm text-foreground">
+                <strong>{revokeTarget.name}</strong> will be unpublished and moved back to staging.
+                A reviewer must re-approve it before it appears on the platform again.
+              </p>
+              <label className="text-sm">
+                Reason <span className="text-muted-fg">(optional — notifies the creator)</span>
+                <textarea
+                  className="mt-1 w-full rounded-md bg-surface border border-border px-3 py-2 min-h-20 resize-y"
+                  value={revokeNotes}
+                  onChange={(e) => setRevokeNotes(e.target.value)}
+                  placeholder="e.g. Metadata update required before re-publishing"
+                />
+              </label>
+
+              {revokeMutation.error && (
+                <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {asErrorMessage(revokeMutation.error, 'Failed to revoke artist.')}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => revokeMutation.mutate({ id: revokeTarget.id, notes: revokeNotes })}
+                  disabled={revokeMutation.isPending}
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:bg-red-700"
+                >
+                  {revokeMutation.isPending ? 'Revoking…' : 'Confirm revoke'}
+                </button>
+                <button
+                  onClick={() => { setRevokeTarget(null); setRevokeNotes(''); revokeMutation.reset() }}
+                  disabled={revokeMutation.isPending}
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </section>
   )
 }

@@ -48,6 +48,11 @@ class ReviewNoteRequest(_CamelModel):
     notes: str = Field(min_length=1, max_length=2000)
 
 
+class RevokeRequest(_CamelModel):
+    """Optional notes explaining why a published item is being pulled back to staging."""
+    notes: str | None = Field(default=None, max_length=2000)
+
+
 # ── Auth helpers ───────────────────────────────────────────────────────────────
 
 async def _require_internal(current_user: dict = Depends(get_current_user)) -> dict:
@@ -62,6 +67,12 @@ async def _require_reviewer(current_user: dict = Depends(get_current_user)) -> d
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Publisher or admin role required.",
         )
+    return current_user
+
+
+async def _require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required.")
     return current_user
 
 
@@ -645,6 +656,105 @@ async def send_track_for_review(
                   message=f'{reviewer} requested revisions on your track: {payload.notes}')
     await db.commit()
     return {"trackId": track_id, "action": "sent_for_review"}
+
+
+# ── Revoke (published → review) ────────────────────────────────────────────────
+#
+# Admin-only operation: pull a published item back into the staging queue so it
+# can be updated and re-reviewed.  A staging_review record is written so the
+# audit trail is complete; the creator is notified if notes are provided.
+
+@router.post("/artists/{artist_id}/revoke", summary="Revoke a published artist back to staging (admin only)")
+async def revoke_artist(
+    artist_id: str,
+    payload: RevokeRequest = None,
+    current_user: dict = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    if payload is None:
+        payload = RevokeRequest()
+    row = await _fetch_entity(db, "artist", artist_id, require_status="published")
+    reviewer_name = await _reviewer_display_name(current_user)
+
+    await db.execute(
+        text("UPDATE artists SET status = 'review', published_at = NULL WHERE id = CAST(:id AS uuid)"),
+        {"id": artist_id},
+    )
+    await _insert_staging_review(
+        db, entity_type="artist", entity_id=artist_id,
+        reviewer_id=current_user["id"], action="sent_for_review", notes=payload.notes,
+    )
+    creator_id = str(row["created_by"])
+    if creator_id != current_user["id"]:
+        msg_parts = [f"{reviewer_name} revoked the publication of your artist and returned it to staging for re-review."]
+        if payload.notes:
+            msg_parts.append(f"Note: {payload.notes}")
+        await _notify(db, recipient_id=creator_id, entity_type="artist", entity_id=artist_id, message=" ".join(msg_parts))
+
+    await db.commit()
+    return {"artistId": artist_id, "action": "revoked"}
+
+
+@router.post("/albums/{album_id}/revoke", summary="Revoke a published album back to staging (admin only)")
+async def revoke_album(
+    album_id: str,
+    payload: RevokeRequest = None,
+    current_user: dict = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    if payload is None:
+        payload = RevokeRequest()
+    row = await _fetch_entity(db, "album", album_id, require_status="published")
+    reviewer_name = await _reviewer_display_name(current_user)
+
+    await db.execute(
+        text("UPDATE albums SET status = 'review', published_at = NULL WHERE id = CAST(:id AS uuid)"),
+        {"id": album_id},
+    )
+    await _insert_staging_review(
+        db, entity_type="album", entity_id=album_id,
+        reviewer_id=current_user["id"], action="sent_for_review", notes=payload.notes,
+    )
+    creator_id = str(row["created_by"])
+    if creator_id != current_user["id"]:
+        msg_parts = [f"{reviewer_name} revoked the publication of your album and returned it to staging for re-review."]
+        if payload.notes:
+            msg_parts.append(f"Note: {payload.notes}")
+        await _notify(db, recipient_id=creator_id, entity_type="album", entity_id=album_id, message=" ".join(msg_parts))
+
+    await db.commit()
+    return {"albumId": album_id, "action": "revoked"}
+
+
+@router.post("/{track_id}/revoke", summary="Revoke a published track back to staging (admin only)")
+async def revoke_track(
+    track_id: str,
+    payload: RevokeRequest = None,
+    current_user: dict = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    if payload is None:
+        payload = RevokeRequest()
+    row = await _fetch_entity(db, "track", track_id, require_status="published")
+    reviewer_name = await _reviewer_display_name(current_user)
+
+    await db.execute(
+        text("UPDATE tracks SET status = 'review', published_at = NULL WHERE id = CAST(:id AS uuid)"),
+        {"id": track_id},
+    )
+    await _insert_staging_review(
+        db, entity_type="track", entity_id=track_id,
+        reviewer_id=current_user["id"], action="sent_for_review", notes=payload.notes,
+    )
+    creator_id = str(row["created_by"])
+    if creator_id != current_user["id"]:
+        msg_parts = [f"{reviewer_name} revoked the publication of your track and returned it to staging for re-review."]
+        if payload.notes:
+            msg_parts.append(f"Note: {payload.notes}")
+        await _notify(db, recipient_id=creator_id, entity_type="track", entity_id=track_id, message=" ".join(msg_parts))
+
+    await db.commit()
+    return {"trackId": track_id, "action": "revoked"}
 
 
 # ── Archive list ───────────────────────────────────────────────────────────────

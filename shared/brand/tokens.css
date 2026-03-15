@@ -43,10 +43,10 @@
   --color-ink: #111111;
 
   /* --- Brand accents --- */
-  --color-primary: #ff0080;          /* hot pink — main brand glow */
+  --color-primary: #f34c9f;          /* hot pink — main brand glow */
   --color-primary-dim: rgba(255, 0, 128, 0.15);
-  --color-primary-hover: #e6006e;
-  --color-secondary: #00bfff;        /* electric blue */
+  --color-primary-hover: #f62f8f;
+  --color-secondary: #47c5ef;        /* electric blue */
   --color-secondary-dim: rgba(0, 191, 255, 0.15);
   --color-secondary-hover: #00a8e0;
 

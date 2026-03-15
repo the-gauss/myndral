@@ -238,6 +238,16 @@ export const rejectTrack = (trackId: string, notes: string) =>
 export const sendTrackForReview = (trackId: string, notes: string) =>
   api.post<{ trackId: string; action: string }>(`/v1/internal/staging/${trackId}/review`, { notes }).then((r) => r.data)
 
+// Revoke (published → review, admin only)
+export const revokeArtist = (artistId: string, notes?: string) =>
+  api.post<{ artistId: string; action: string }>(`/v1/internal/staging/artists/${artistId}/revoke`, { notes: notes || undefined }).then((r) => r.data)
+
+export const revokeAlbum = (albumId: string, notes?: string) =>
+  api.post<{ albumId: string; action: string }>(`/v1/internal/staging/albums/${albumId}/revoke`, { notes: notes || undefined }).then((r) => r.data)
+
+export const revokeTrack = (trackId: string, notes?: string) =>
+  api.post<{ trackId: string; action: string }>(`/v1/internal/staging/${trackId}/revoke`, { notes: notes || undefined }).then((r) => r.data)
+
 // ── Archive ───────────────────────────────────────────────────────────────────
 
 export const listArchive = () =>

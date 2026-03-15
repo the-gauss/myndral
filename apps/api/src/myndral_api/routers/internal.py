@@ -216,6 +216,13 @@ class MusicPromptInput(CamelModel):
 
 
 class MusicGenerateRequest(CamelModel):
+    # ── Catalog linking (required) ────────────────────────────────────────────
+    artist_id: str = Field(alias="artistId")
+    album_id: str = Field(alias="albumId")
+    track_title: str = Field(alias="trackTitle", min_length=1, max_length=255)
+    explicit: bool = False
+
+    # ── Generation params ─────────────────────────────────────────────────────
     prompt: str = Field(min_length=1, max_length=2000)
     prompt_weight: float = Field(default=1.0, alias="promptWeight", ge=-5.0, le=5.0)
     weighted_prompts: list[MusicPromptInput] = Field(default_factory=list, alias="weightedPrompts")
@@ -1081,6 +1088,32 @@ async def generate_music(
             detail="ELEVENLABS_API_KEY is not configured on the API server.",
         )
 
+    # ── Validate artist and album exist ──────────────────────────────────────
+    artist_row = await db.execute(
+        text("SELECT id, name FROM artists WHERE id = CAST(:artist_id AS uuid)"),
+        {"artist_id": payload.artist_id},
+    )
+    artist = artist_row.mappings().first()
+    if artist is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artist not found.")
+
+    album_row = await db.execute(
+        text(
+            """
+SELECT id, title FROM albums
+WHERE id = CAST(:album_id AS uuid)
+  AND artist_id = CAST(:artist_id AS uuid)
+"""
+        ),
+        {"album_id": payload.album_id, "artist_id": payload.artist_id},
+    )
+    album = album_row.mappings().first()
+    if album is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Album not found for this artist.",
+        )
+
     model_name = (
         _normalize_optional_text(payload.model)
         or settings.elevenlabs_model
@@ -1139,7 +1172,7 @@ RETURNING id::text
             with_timestamps=payload.with_timestamps,
             force_instrumental=payload.force_instrumental,
             output_subdir=settings.elevenlabs_output_subdir,
-            filename_hint=payload.file_name or payload.prompt,
+            filename_hint=payload.file_name or payload.track_title,
             seed=payload.seed,
         )
     except MusicGenerationError as exc:
@@ -1161,7 +1194,7 @@ WHERE id = CAST(:job_id AS uuid)
         await db.commit()
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
-    output_metadata = {
+    output_metadata: dict[str, Any] = {
         "storageUrl": generated.storage_url,
         "absolutePath": str(generated.absolute_path),
         "mimeType": generated.mime_type,
@@ -1176,6 +1209,120 @@ WHERE id = CAST(:job_id AS uuid)
         "wordsTimestamps": generated.words_timestamps,
         "lyrics": generated.lyrics,
     }
+
+    # ── Auto-create track in 'review' (staging) status ───────────────────────
+    track_num_row = await db.execute(
+        text("SELECT COALESCE(MAX(track_number), 0) + 1 AS next_num FROM tracks WHERE album_id = CAST(:album_id AS uuid)"),
+        {"album_id": payload.album_id},
+    )
+    next_track_number = int(track_num_row.scalar_one())
+
+    duration_ms = int(generated.duration_ms or 0)
+    audio_format = guess_audio_format(generated.storage_url) or "mp3"
+
+    track_insert = await db.execute(
+        text(
+            """
+INSERT INTO tracks (
+  title, album_id, primary_artist_id,
+  track_number, disc_number, duration_ms,
+  explicit, status, created_by
+)
+VALUES (
+  :title, CAST(:album_id AS uuid), CAST(:artist_id AS uuid),
+  :track_number, 1, :duration_ms,
+  :explicit, 'review', CAST(:created_by AS uuid)
+)
+RETURNING id::text
+"""
+        ),
+        {
+            "title": payload.track_title.strip(),
+            "album_id": payload.album_id,
+            "artist_id": payload.artist_id,
+            "track_number": next_track_number,
+            "duration_ms": duration_ms,
+            "explicit": payload.explicit,
+            "created_by": current_user["id"],
+        },
+    )
+    track_id = str(track_insert.scalar_one())
+
+    # Primary artist link
+    await db.execute(
+        text(
+            """
+INSERT INTO track_artists (track_id, artist_id, role, display_order)
+VALUES (CAST(:track_id AS uuid), CAST(:artist_id AS uuid), 'primary', 0)
+ON CONFLICT DO NOTHING
+"""
+        ),
+        {"track_id": track_id, "artist_id": payload.artist_id},
+    )
+
+    # Audio file
+    await db.execute(
+        text(
+            """
+INSERT INTO track_audio_files (
+  track_id, quality, format, storage_url,
+  bitrate_kbps, sample_rate_hz, channels,
+  file_size_bytes, duration_ms
+)
+VALUES (
+  CAST(:track_id AS uuid), 'standard_256', :format, :storage_url,
+  :bitrate_kbps, :sample_rate_hz, :channels,
+  :file_size_bytes, :duration_ms
+)
+"""
+        ),
+        {
+            "track_id": track_id,
+            "format": audio_format,
+            "storage_url": generated.storage_url,
+            "bitrate_kbps": None,
+            "sample_rate_hz": generated.sample_rate_hz,
+            "channels": generated.channels or 2,
+            "file_size_bytes": generated.file_size_bytes,
+            "duration_ms": duration_ms or None,
+        },
+    )
+
+    # Recompute album track_count
+    await db.execute(
+        text(
+            """
+UPDATE albums
+SET track_count = (
+  SELECT count(*) FROM tracks
+  WHERE album_id = CAST(:album_id AS uuid)
+    AND status != 'archived'
+)
+WHERE id = CAST(:album_id AS uuid)
+"""
+        ),
+        {"album_id": payload.album_id},
+    )
+
+    # Optionally store generated lyrics on the track
+    if generated.lyrics:
+        await db.execute(
+            text(
+                """
+INSERT INTO track_lyrics (track_id, content, language, has_timestamps)
+VALUES (CAST(:track_id AS uuid), :content, 'en', :has_timestamps)
+ON CONFLICT (track_id) DO UPDATE
+  SET content = EXCLUDED.content, has_timestamps = EXCLUDED.has_timestamps
+"""
+            ),
+            {
+                "track_id": track_id,
+                "content": generated.lyrics,
+                "has_timestamps": payload.with_timestamps and bool(generated.words_timestamps),
+            },
+        )
+
+    output_metadata["trackId"] = track_id
 
     await db.execute(
         text(

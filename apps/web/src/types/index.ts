@@ -79,6 +79,33 @@ export interface Paginated<T> {
   offset: number
 }
 
+// ── Exports ───────────────────────────────────────────────────────────────────
+
+export type LicenseType = 'personal' | 'business'
+
+export interface TrackLicenseResponse {
+  licenseId: string
+  licenseType: LicenseType
+  subjectType: 'track'
+  subjectId: string
+  trackTitle: string
+  downloadUrl: string
+}
+
+export interface AlbumLicenseResponse {
+  licenseType: LicenseType
+  subjectType: 'album'
+  albumId: string
+  albumTitle: string
+  tracks: {
+    licenseId: string
+    trackId: string
+    trackTitle: string
+    trackNumber: number
+    downloadUrl: string
+  }[]
+}
+
 // ── Search ────────────────────────────────────────────────────────────────────
 
 export interface SearchResults {

@@ -4,9 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   fetchGeneratedMusicFile,
   generateMusic,
+  listAlbums,
+  listArtists,
   listMusicJobs,
 } from '../services/internal'
-import type { MusicGenerationJob } from '../types'
+import type { ArtistItem, AlbumItem, MusicGenerationJob } from '../types'
 
 type CreatorTab = 'song' | 'lyrics'
 
@@ -34,17 +36,13 @@ function formatDate(value: string | null | undefined): string {
 
 function formatDuration(job: MusicGenerationJob): string {
   const durationMs = Number(job.outputMetadata?.durationMs)
-  if (!Number.isFinite(durationMs) || durationMs <= 0) {
-    return '-'
-  }
+  if (!Number.isFinite(durationMs) || durationMs <= 0) return '-'
   return `${Math.round(durationMs / 1000)}s`
 }
 
 function formatFileSize(job: MusicGenerationJob): string {
   const raw = Number(job.outputMetadata?.fileSizeBytes)
-  if (!Number.isFinite(raw) || raw <= 0) {
-    return '-'
-  }
+  if (!Number.isFinite(raw) || raw <= 0) return '-'
   const units = ['B', 'KB', 'MB', 'GB']
   let amount = raw
   let unitIndex = 0
@@ -69,6 +67,14 @@ function getLyrics(job: MusicGenerationJob): string | null {
 
 export default function CreateMusicPanel() {
   const queryClient = useQueryClient()
+
+  // ── Catalog linking ─────────────────────────────────────────────────────
+  const [selectedArtistId, setSelectedArtistId] = useState('')
+  const [selectedAlbumId, setSelectedAlbumId] = useState('')
+  const [trackTitle, setTrackTitle] = useState('')
+  const [explicit, setExplicit] = useState(false)
+
+  // ── Generation params ────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<CreatorTab>('song')
   const [prompt, setPrompt] = useState('')
   const [styleNote, setStyleNote] = useState('')
@@ -80,10 +86,36 @@ export default function CreateMusicPanel() {
   const [useCustomLyrics, setUseCustomLyrics] = useState(false)
   const [lyrics, setLyrics] = useState('')
   const [withTimestamps, setWithTimestamps] = useState(false)
+
+  // ── Preview ──────────────────────────────────────────────────────────────
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewJobId, setPreviewJobId] = useState<string | null>(null)
   const [previewTitle, setPreviewTitle] = useState<string | null>(null)
   const [previewLyrics, setPreviewLyrics] = useState<string | null>(null)
+
+  // ── Catalog data ─────────────────────────────────────────────────────────
+  const artistsQuery = useQuery({
+    queryKey: ['internal-artists-published'],
+    queryFn: () => listArtists({ status: 'published', limit: 200 }),
+  })
+
+  const albumsQuery = useQuery({
+    queryKey: ['internal-albums-for-artist', selectedArtistId],
+    queryFn: () => listAlbums({ artistId: selectedArtistId, limit: 200 }),
+    enabled: !!selectedArtistId,
+  })
+
+  // Reset album selection when artist changes
+  useEffect(() => {
+    setSelectedAlbumId('')
+  }, [selectedArtistId])
+
+  useEffect(() => {
+    if (forceInstrumental) {
+      setUseCustomLyrics(false)
+      setActiveTab('song')
+    }
+  }, [forceInstrumental])
 
   const jobs = useQuery({
     queryKey: ['music-jobs'],
@@ -94,27 +126,23 @@ export default function CreateMusicPanel() {
     mutationFn: generateMusic,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['music-jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['staging'] })
     },
   })
 
   const previewMutation = useMutation({
     mutationFn: async (job: MusicGenerationJob) => {
       const blob = await fetchGeneratedMusicFile(job.outputStorageUrl!)
-      return {
-        blob,
-        jobId: job.id,
-        title: getSongTitle(job),
-        lyrics: getLyrics(job),
-      }
+      return { blob, jobId: job.id, title: getSongTitle(job), lyrics: getLyrics(job) }
     },
-    onSuccess: ({ blob, jobId, title, lyrics }) => {
+    onSuccess: ({ blob, jobId, title, lyrics: lyr }) => {
       setPreviewUrl((current) => {
         if (current) URL.revokeObjectURL(current)
         return URL.createObjectURL(blob)
       })
       setPreviewJobId(jobId)
       setPreviewTitle(title)
-      setPreviewLyrics(lyrics)
+      setPreviewLyrics(lyr)
     },
   })
 
@@ -122,26 +150,27 @@ export default function CreateMusicPanel() {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
   }, [previewUrl])
 
-  useEffect(() => {
-    if (forceInstrumental) {
-      setUseCustomLyrics(false)
-      setActiveTab('song')
-    }
-  }, [forceInstrumental])
-
   const controlsEnabled = useMemo(
     () => !createMusicMutation.isPending,
     [createMusicMutation.isPending],
   )
 
+  const publishedArtists: ArtistItem[] = artistsQuery.data?.items ?? []
+  const albumsForArtist: AlbumItem[] = albumsQuery.data?.items ?? []
+  const noArtists = !artistsQuery.isLoading && publishedArtists.length === 0
+  const noAlbums = !!selectedArtistId && !albumsQuery.isLoading && albumsForArtist.length === 0
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-
     const weightedPrompts = styleNote.trim()
       ? [{ text: styleNote.trim(), weight: 0.85 }]
       : undefined
 
     createMusicMutation.mutate({
+      artistId: selectedArtistId,
+      albumId: selectedAlbumId,
+      trackTitle: trackTitle.trim(),
+      explicit,
       prompt: prompt.trim(),
       promptWeight: parseOptionalNumber('1') ?? 1,
       weightedPrompts,
@@ -162,11 +191,76 @@ export default function CreateMusicPanel() {
       <div className="rounded-lg border border-border bg-surface/40 p-4">
         <h3 className="text-lg font-semibold">Create Song (ElevenLabs)</h3>
         <p className="mt-1 text-sm text-muted-fg">
-          Generates a local MP3 into <code>data/generated/music/</code> with full-song vocals by default. This remains separate from Add Track.
+          Generate a song and link it to an artist and album. On success it moves straight to
+          Staging for review.
         </p>
       </div>
 
-      <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface/40 p-4 lg:grid-cols-3">
+      {noArtists && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          No published artists yet. Go to the <strong>Artists</strong> tab and publish at least one
+          artist before generating a song.
+        </div>
+      )}
+
+      <form
+        onSubmit={onSubmit}
+        className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface/40 p-4 lg:grid-cols-3"
+      >
+        {/* ── Catalog linking ──────────────────────────────────────────── */}
+        <label className="text-sm">
+          Artist <span className="text-red-400">*</span>
+          <select
+            className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+            value={selectedArtistId}
+            onChange={(e) => setSelectedArtistId(e.target.value)}
+            required
+            disabled={!controlsEnabled || artistsQuery.isLoading}
+          >
+            <option value="">— select artist —</option>
+            {publishedArtists.map((a) => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="text-sm">
+          Album <span className="text-red-400">*</span>
+          <select
+            className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+            value={selectedAlbumId}
+            onChange={(e) => setSelectedAlbumId(e.target.value)}
+            required
+            disabled={!controlsEnabled || !selectedArtistId || albumsQuery.isLoading}
+          >
+            <option value="">— select album —</option>
+            {albumsForArtist.map((a) => (
+              <option key={a.id} value={a.id}>{a.title}</option>
+            ))}
+          </select>
+          {!selectedArtistId && (
+            <p className="mt-1 text-xs text-muted-fg">Select an artist first.</p>
+          )}
+          {noAlbums && (
+            <p className="mt-1 text-xs text-amber-300">
+              No albums for this artist. Add one in the <strong>Albums</strong> tab.
+            </p>
+          )}
+        </label>
+
+        <label className="text-sm">
+          Track title <span className="text-red-400">*</span>
+          <input
+            className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 disabled:opacity-50"
+            value={trackTitle}
+            onChange={(e) => setTrackTitle(e.target.value)}
+            placeholder="e.g. Midnight Circuit"
+            required
+            disabled={!controlsEnabled}
+          />
+        </label>
+
+        {/* ── Tab switcher ─────────────────────────────────────────────── */}
         <div className="flex flex-wrap gap-2 lg:col-span-3">
           <button
             type="button"
@@ -189,7 +283,7 @@ export default function CreateMusicPanel() {
         {activeTab === 'song' && (
           <>
             <label className="text-sm lg:col-span-3">
-              Song prompt
+              Song prompt <span className="text-red-400">*</span>
               <textarea
                 className="mt-1 min-h-28 w-full rounded-md border border-border bg-background px-3 py-2"
                 value={prompt}
@@ -234,7 +328,7 @@ export default function CreateMusicPanel() {
               />
             </label>
             <label className="text-sm">
-              File name (optional)
+              File name hint (optional)
               <input
                 className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2"
                 value={fileName}
@@ -254,14 +348,23 @@ export default function CreateMusicPanel() {
               />
             </label>
 
-            <label className="inline-flex items-center gap-2 text-sm lg:col-span-2">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={explicit}
+                onChange={(e) => setExplicit(e.target.checked)}
+                disabled={!controlsEnabled}
+              />
+              Explicit content
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={forceInstrumental}
                 onChange={(e) => setForceInstrumental(e.target.checked)}
                 disabled={!controlsEnabled}
               />
-              Generate instrumental only
+              Instrumental only
             </label>
             <label className="inline-flex items-center gap-2 text-sm">
               <input
@@ -272,10 +375,6 @@ export default function CreateMusicPanel() {
               />
               Return word timestamps
             </label>
-
-            <p className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-fg lg:col-span-3">
-              Vocals are the default path. Switch to the Lyrics tab only if you want to control the sung words directly.
-            </p>
           </>
         )}
 
@@ -312,13 +411,7 @@ export default function CreateMusicPanel() {
 
             {!forceInstrumental && !useCustomLyrics && (
               <p className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-sm text-muted-fg lg:col-span-3">
-                Leave this off if you want ElevenLabs to improvise the vocals from your song prompt.
-              </p>
-            )}
-
-            {!forceInstrumental && useCustomLyrics && (
-              <p className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-fg lg:col-span-3">
-                Separate sections with blank lines. Optional labels like <code>[Verse 1]</code> or <code>[Chorus]</code> are preserved and mapped into the composition plan sent to ElevenLabs.
+                Leave this off to let ElevenLabs improvise the vocals from your song prompt.
               </p>
             )}
           </>
@@ -330,13 +423,28 @@ export default function CreateMusicPanel() {
           </p>
         )}
 
+        {createMusicMutation.isSuccess && (
+          <p className="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-300 lg:col-span-3">
+            Song generated and sent to Staging for review.
+          </p>
+        )}
+
         <div className="lg:col-span-3">
-          <button disabled={!controlsEnabled} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-60">
+          <button
+            disabled={
+              !controlsEnabled ||
+              !selectedArtistId ||
+              !selectedAlbumId ||
+              !trackTitle.trim()
+            }
+            className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-60"
+          >
             {createMusicMutation.isPending ? 'Generating…' : 'Generate song'}
           </button>
         </div>
       </form>
 
+      {/* ── Recent jobs ──────────────────────────────────────────────────── */}
       <div className="rounded-lg border border-border">
         <div className="border-b border-border bg-surface/70 px-4 py-3 text-sm text-muted-fg">
           Recent generated files ({jobs.data?.total ?? 0})
@@ -386,9 +494,7 @@ export default function CreateMusicPanel() {
                         >
                           Preview
                         </button>
-                      ) : (
-                        '-'
-                      )}
+                      ) : '-'}
                     </td>
                   </tr>
                 ))}

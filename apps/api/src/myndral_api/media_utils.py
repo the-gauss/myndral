@@ -31,6 +31,20 @@ def normalize_audio_url(track_id: str, storage_url: str | None) -> str | None:
     return storage_url
 
 
+def normalize_image_url(storage_url: str | None) -> str | None:
+    """Convert a local data/images/... storage path to a routable /v1/images/... URL.
+
+    Remote URLs (http/https/s3/gs) are returned unchanged.  This mirrors the
+    pattern used by normalize_audio_url for audio files.
+    """
+    if not storage_url:
+        return None
+    if storage_url.startswith(("data/images/", "/data/images/")):
+        filename = storage_url.lstrip("/").removeprefix("data/images/")
+        return f"/v1/images/{filename}"
+    return storage_url
+
+
 def resolve_local_storage_path(storage_url: str) -> Path | None:
     candidate: Path
     if storage_url.startswith("data/"):

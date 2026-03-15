@@ -26,6 +26,7 @@ from myndral_api.media_utils import (
     infer_local_audio_metadata,
     is_local_storage_url,
     is_remote_storage_url,
+    normalize_image_url,
     resolve_local_storage_path,
 )
 from myndral_api.music_generation import (
@@ -588,8 +589,8 @@ def _serialize_artist(row: Any) -> dict[str, Any]:
         "name": row["name"],
         "slug": row["slug"],
         "bio": row["bio"],
-        "imageUrl": row["image_url"],
-        "headerImageUrl": row["header_image_url"],
+        "imageUrl": normalize_image_url(row["image_url"]),
+        "headerImageUrl": normalize_image_url(row["header_image_url"]),
         "status": row["status"],
         "personaPrompt": row["persona_prompt"],
         "styleTags": row["style_tags"] or [],
@@ -606,7 +607,7 @@ def _serialize_album(row: Any) -> dict[str, Any]:
         "slug": row["slug"],
         "artistId": row["artist_id"],
         "artistName": row["artist_name"],
-        "coverUrl": row["cover_url"],
+        "coverUrl": normalize_image_url(row["cover_url"]),
         "description": row["description"],
         "releaseDate": _iso(row["release_date"]),
         "albumType": row["album_type"],

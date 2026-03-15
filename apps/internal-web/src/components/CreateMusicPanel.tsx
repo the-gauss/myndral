@@ -22,6 +22,7 @@ import {
   listArtists,
   listMusicJobs,
   listTracks,
+  revokeTrack as revokeTrackApi,
 } from '../services/internal'
 import type {
   ArtistItem,
@@ -32,6 +33,7 @@ import type {
   TrackItem,
 } from '../types'
 import type { LinkExternalUrlPayload, UploadMusicPayload } from '../services/internal'
+import { useAuthStore } from '../store/authStore'
 
 // ── Tab types ──────────────────────────────────────────────────────────────────
 
@@ -132,6 +134,8 @@ function StatusBadge({ status }: { status: ContentStatus }) {
 
 export default function CreateMusicPanel() {
   const queryClient = useQueryClient()
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role === 'admin'
 
   // ── Catalog linking fields ─────────────────────────────────────────────────
   const [selectedArtistId, setSelectedArtistId] = useState('')
@@ -170,6 +174,10 @@ export default function CreateMusicPanel() {
   const [previewTitle, setPreviewTitle]   = useState<string | null>(null)
   const [previewLyrics, setPreviewLyrics] = useState<string | null>(null)
   const [previewError, setPreviewError]   = useState<string | null>(null)
+
+  // ── Track revoke confirmation (admin-only) ────────────────────────────────
+  const [revokeTarget, setRevokeTarget] = useState<TrackItem | null>(null)
+  const [revokeNotes, setRevokeNotes]   = useState('')
 
   // ── Catalog browse filters ─────────────────────────────────────────────────
   const [catalogSearch, setCatalogSearch]           = useState('')
@@ -266,6 +274,17 @@ export default function CreateMusicPanel() {
       setPreviewLyrics(lyr)
     },
     onError: (error) => setPreviewError(asErrorMessage(error, 'Failed to load audio file.')),
+  })
+
+  const revokeMutation = useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes: string }) =>
+      revokeTrackApi(id, notes.trim() || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tracks'] })
+      queryClient.invalidateQueries({ queryKey: ['staging'] })
+      setRevokeTarget(null)
+      setRevokeNotes('')
+    },
   })
 
   // ── Derived data ──────────────────────────────────────────────────────────
@@ -940,6 +959,7 @@ export default function CreateMusicPanel() {
                   <th className="px-3 py-2">Duration</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Updated</th>
+                  {isAdmin && <th className="px-3 py-2">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -960,6 +980,19 @@ export default function CreateMusicPanel() {
                     <td className="px-3 py-2 text-xs text-muted-fg">
                       {new Date(track.updatedAt).toLocaleString()}
                     </td>
+                    {/* Songs are fully immutable — admin can only revoke published tracks */}
+                    {isAdmin && (
+                      <td className="px-3 py-2">
+                        {track.status === 'published' && (
+                          <button
+                            onClick={() => { setRevokeTarget(track); setRevokeNotes(''); revokeMutation.reset() }}
+                            className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -971,6 +1004,54 @@ export default function CreateMusicPanel() {
           <p className="text-sm text-muted-fg">No songs found.</p>
         )}
       </div>
+
+      {/* ── Track revoke confirmation (admin-only) ───────────────────────────── */}
+      {revokeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl border border-red-500/30 bg-background shadow-2xl">
+            <div className="p-5 space-y-4">
+              <h2 className="text-base font-semibold text-red-300">Revoke published song</h2>
+              <p className="text-sm text-foreground">
+                <strong>{revokeTarget.title}</strong> will be unpublished and moved back to staging.
+                Songs are immutable — no edits can be made while in staging.
+                A reviewer must re-approve it before it appears on the platform again.
+              </p>
+              <label className="text-sm">
+                Reason <span className="text-muted-fg">(optional — notifies the creator)</span>
+                <textarea
+                  className="mt-1 w-full rounded-md bg-surface border border-border px-3 py-2 min-h-20 resize-y"
+                  value={revokeNotes}
+                  onChange={(e) => setRevokeNotes(e.target.value)}
+                  placeholder="e.g. Audio quality issue requires re-upload"
+                />
+              </label>
+
+              {revokeMutation.error && (
+                <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {asErrorMessage(revokeMutation.error, 'Failed to revoke track.')}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => revokeMutation.mutate({ id: revokeTarget.id, notes: revokeNotes })}
+                  disabled={revokeMutation.isPending}
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:bg-red-700"
+                >
+                  {revokeMutation.isPending ? 'Revoking…' : 'Confirm revoke'}
+                </button>
+                <button
+                  onClick={() => { setRevokeTarget(null); setRevokeNotes(''); revokeMutation.reset() }}
+                  disabled={revokeMutation.isPending}
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </section>
   )

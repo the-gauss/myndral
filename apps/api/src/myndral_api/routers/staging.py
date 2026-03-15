@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from myndral_api.auth_utils import get_current_user
 from myndral_api.db.session import get_db
+from myndral_api.media_utils import normalize_image_url
 
 router = APIRouter()
 
@@ -101,7 +102,7 @@ def _serialize_staging_artist(row: Any) -> dict[str, Any]:
         "id": str(row["id"]),
         "name": row["name"],
         "slug": row["slug"],
-        "imageUrl": row["image_url"],
+        "imageUrl": normalize_image_url(row["image_url"]),
         "bio": row["bio"],
         "styleTags": row["style_tags"] or [],
         "status": row["status"],
@@ -121,7 +122,7 @@ def _serialize_staging_album(row: Any) -> dict[str, Any]:
         "slug": row["slug"],
         "artistId": str(row["artist_id"]),
         "artistName": row["artist_name"],
-        "coverUrl": row["cover_url"],
+        "coverUrl": normalize_image_url(row["cover_url"]),
         "albumType": row["album_type"],
         "releaseDate": _iso(row["release_date"]),
         "trackCount": row["track_count"],
@@ -664,7 +665,7 @@ async def send_track_for_review(
 # can be updated and re-reviewed.  A staging_review record is written so the
 # audit trail is complete; the creator is notified if notes are provided.
 
-@router.post("/artists/{artist_id}/revoke", summary="Revoke a published artist back to staging (admin only)")
+@router.post("/staging/artists/{artist_id}/revoke", summary="Revoke a published artist back to staging (admin only)")
 async def revoke_artist(
     artist_id: str,
     payload: RevokeRequest = None,
@@ -695,7 +696,7 @@ async def revoke_artist(
     return {"artistId": artist_id, "action": "revoked"}
 
 
-@router.post("/albums/{album_id}/revoke", summary="Revoke a published album back to staging (admin only)")
+@router.post("/staging/albums/{album_id}/revoke", summary="Revoke a published album back to staging (admin only)")
 async def revoke_album(
     album_id: str,
     payload: RevokeRequest = None,
@@ -726,7 +727,7 @@ async def revoke_album(
     return {"albumId": album_id, "action": "revoked"}
 
 
-@router.post("/{track_id}/revoke", summary="Revoke a published track back to staging (admin only)")
+@router.post("/staging/{track_id}/revoke", summary="Revoke a published track back to staging (admin only)")
 async def revoke_track(
     track_id: str,
     payload: RevokeRequest = None,

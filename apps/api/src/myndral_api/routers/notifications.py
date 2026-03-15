@@ -29,8 +29,12 @@ def _iso(value: Any) -> str | None:
 def _serialize_notification(row: Any) -> dict[str, Any]:
     return {
         "id": str(row["id"]),
+        "entityType": row["entity_type"],
         "trackId": str(row["track_id"]) if row["track_id"] else None,
-        "trackTitle": row["track_title"],
+        "artistId": str(row["artist_id"]) if row["artist_id"] else None,
+        "albumId": str(row["album_id"]) if row["album_id"] else None,
+        # Human-readable entity name (whichever FK is set)
+        "entityName": row["entity_name"],
         "message": row["message"],
         "isRead": row["is_read"],
         "createdAt": _iso(row["created_at"]),
@@ -50,13 +54,19 @@ async def list_notifications(
             """
 SELECT
   n.id,
+  n.entity_type,
   n.track_id,
-  t.title  AS track_title,
+  n.artist_id,
+  n.album_id,
+  -- Resolve the human-readable name for the linked entity
+  COALESCE(t.title, ar.name, al.title) AS entity_name,
   n.message,
   n.is_read,
   n.created_at
 FROM notifications n
-LEFT JOIN tracks t ON t.id = n.track_id
+LEFT JOIN tracks  t  ON t.id  = n.track_id
+LEFT JOIN artists ar ON ar.id = n.artist_id
+LEFT JOIN albums  al ON al.id = n.album_id
 WHERE n.recipient_id = CAST(:recipient_id AS uuid)
   AND (:unread_only = false OR n.is_read = false)
 ORDER BY n.created_at DESC

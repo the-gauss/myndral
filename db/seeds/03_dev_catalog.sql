@@ -126,28 +126,10 @@ BEGIN
   SELECT id INTO v_user_bob FROM users WHERE username = 'bob_dev';
 
   -- ══════════════════════════════════════════════════════════════════════════
-  -- SUBSCRIPTIONS
+  -- SUBSCRIPTIONS (player app listener accounts only)
+  -- Studio accounts (admin, reviewer, editor) have no subscription plan —
+  -- access is governed by role, not plan.
   -- ══════════════════════════════════════════════════════════════════════════
-
-  -- Admin gets premium annual
-  INSERT INTO subscriptions (user_id, plan_id, status,
-                             current_period_start, current_period_end)
-  SELECT v_user_admin, id, 'active', now(), now() + interval '365 days'
-  FROM   subscription_plans WHERE slug = 'premium_annual'
-  ON CONFLICT DO NOTHING;
-
-  -- Reviewer and editor get free plan
-  INSERT INTO subscriptions (user_id, plan_id, status,
-                             current_period_start, current_period_end)
-  SELECT v_user_reviewer, id, 'active', now(), 'infinity'
-  FROM   subscription_plans WHERE slug = 'free'
-  ON CONFLICT DO NOTHING;
-
-  INSERT INTO subscriptions (user_id, plan_id, status,
-                             current_period_start, current_period_end)
-  SELECT v_user_editor, id, 'active', now(), 'infinity'
-  FROM   subscription_plans WHERE slug = 'free'
-  ON CONFLICT DO NOTHING;
 
   -- Alice gets premium monthly, Bob gets free
   INSERT INTO subscriptions (user_id, plan_id, status,

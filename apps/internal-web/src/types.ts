@@ -32,7 +32,6 @@ export interface InternalUser {
   displayName: string
   avatarUrl?: string | null
   role: UserRole
-  subscriptionPlan: string
   createdAt: string
 }
 

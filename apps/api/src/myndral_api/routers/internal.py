@@ -3,7 +3,7 @@ import re
 from datetime import UTC, date, datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
@@ -20,6 +20,7 @@ from myndral_api.auth_utils import (
 from myndral_api.config import get_settings
 from myndral_api.db.session import get_db
 from myndral_api.media_utils import (
+    DATA_DIR,
     guess_audio_format,
     guess_media_type,
     infer_local_audio_metadata,
@@ -1219,18 +1220,21 @@ WHERE id = CAST(:job_id AS uuid)
     }
 
     # ── Auto-create track in 'review' (staging) status ───────────────────────
-    track_num_row = await db.execute(
-        text("SELECT COALESCE(MAX(track_number), 0) + 1 AS next_num FROM tracks WHERE album_id = CAST(:album_id AS uuid)"),
-        {"album_id": payload.album_id},
-    )
-    next_track_number = int(track_num_row.scalar_one())
+    # Wrap in try/except so any DB issue surfaces as a proper 502 rather than
+    # an opaque 500, and the job is marked failed regardless.
+    try:
+        track_num_row = await db.execute(
+            text("SELECT COALESCE(MAX(track_number), 0) + 1 AS next_num FROM tracks WHERE album_id = CAST(:album_id AS uuid)"),
+            {"album_id": payload.album_id},
+        )
+        next_track_number = int(track_num_row.scalar_one())
 
-    duration_ms = int(generated.duration_ms or 0)
-    audio_format = guess_audio_format(generated.storage_url) or "mp3"
+        duration_ms = int(generated.duration_ms or 0)
+        audio_format = guess_audio_format(generated.storage_url) or "mp3"
 
-    track_insert = await db.execute(
-        text(
-            """
+        track_insert = await db.execute(
+            text(
+                """
 INSERT INTO tracks (
   title, album_id, primary_artist_id,
   track_number, disc_number, duration_ms,
@@ -1243,35 +1247,35 @@ VALUES (
 )
 RETURNING id::text
 """
-        ),
-        {
-            "title": payload.track_title.strip(),
-            "album_id": payload.album_id,
-            "artist_id": payload.artist_id,
-            "track_number": next_track_number,
-            "duration_ms": duration_ms,
-            "explicit": payload.explicit,
-            "created_by": current_user["id"],
-        },
-    )
-    track_id = str(track_insert.scalar_one())
+            ),
+            {
+                "title": payload.track_title.strip(),
+                "album_id": payload.album_id,
+                "artist_id": payload.artist_id,
+                "track_number": next_track_number,
+                "duration_ms": duration_ms,
+                "explicit": payload.explicit,
+                "created_by": current_user["id"],
+            },
+        )
+        track_id = str(track_insert.scalar_one())
 
-    # Primary artist link
-    await db.execute(
-        text(
-            """
+        # Primary artist link
+        await db.execute(
+            text(
+                """
 INSERT INTO track_artists (track_id, artist_id, role, display_order)
 VALUES (CAST(:track_id AS uuid), CAST(:artist_id AS uuid), 'primary', 0)
 ON CONFLICT DO NOTHING
 """
-        ),
-        {"track_id": track_id, "artist_id": payload.artist_id},
-    )
+            ),
+            {"track_id": track_id, "artist_id": payload.artist_id},
+        )
 
-    # Audio file
-    await db.execute(
-        text(
-            """
+        # Audio file
+        await db.execute(
+            text(
+                """
 INSERT INTO track_audio_files (
   track_id, quality, format, storage_url,
   bitrate_kbps, sample_rate_hz, channels,
@@ -1283,23 +1287,23 @@ VALUES (
   :file_size_bytes, :duration_ms
 )
 """
-        ),
-        {
-            "track_id": track_id,
-            "format": audio_format,
-            "storage_url": generated.storage_url,
-            "bitrate_kbps": None,
-            "sample_rate_hz": generated.sample_rate_hz,
-            "channels": generated.channels or 2,
-            "file_size_bytes": generated.file_size_bytes,
-            "duration_ms": duration_ms or None,
-        },
-    )
+            ),
+            {
+                "track_id": track_id,
+                "format": audio_format,
+                "storage_url": generated.storage_url,
+                "bitrate_kbps": None,
+                "sample_rate_hz": generated.sample_rate_hz,
+                "channels": generated.channels or 2,
+                "file_size_bytes": generated.file_size_bytes,
+                "duration_ms": duration_ms or None,
+            },
+        )
 
-    # Recompute album track_count
-    await db.execute(
-        text(
-            """
+        # Recompute album track_count
+        await db.execute(
+            text(
+                """
 UPDATE albums
 SET track_count = (
   SELECT count(*) FROM tracks
@@ -1308,43 +1312,62 @@ SET track_count = (
 )
 WHERE id = CAST(:album_id AS uuid)
 """
-        ),
-        {"album_id": payload.album_id},
-    )
+            ),
+            {"album_id": payload.album_id},
+        )
 
-    # Optionally store generated lyrics on the track
-    if generated.lyrics:
-        await db.execute(
-            text(
-                """
-INSERT INTO track_lyrics (track_id, content, language, has_timestamps)
+        # Optionally store generated lyrics on the track
+        if generated.lyrics:
+            await db.execute(
+                text(
+                    """
+INSERT INTO lyrics (track_id, content, language, has_timestamps)
 VALUES (CAST(:track_id AS uuid), :content, 'en', :has_timestamps)
 ON CONFLICT (track_id) DO UPDATE
   SET content = EXCLUDED.content, has_timestamps = EXCLUDED.has_timestamps
 """
-            ),
-            {
-                "track_id": track_id,
-                "content": generated.lyrics,
-                "has_timestamps": payload.with_timestamps and bool(generated.words_timestamps),
-            },
-        )
+                ),
+                {
+                    "track_id": track_id,
+                    "content": generated.lyrics,
+                    "has_timestamps": payload.with_timestamps and bool(generated.words_timestamps),
+                },
+            )
 
-    output_metadata["trackId"] = track_id
+        output_metadata["trackId"] = track_id
 
-    await db.execute(
-        text(
-            """
+        await db.execute(
+            text(
+                """
 UPDATE generation_jobs
 SET status = 'completed',
     completed_at = now(),
     output_metadata = CAST(:output_metadata AS jsonb)
 WHERE id = CAST(:job_id AS uuid)
 """
-        ),
-        {"job_id": job_id, "output_metadata": json.dumps(output_metadata)},
-    )
-    await db.commit()
+            ),
+            {"job_id": job_id, "output_metadata": json.dumps(output_metadata)},
+        )
+        await db.commit()
+
+    except Exception as db_exc:
+        detail = f"Track catalog write failed after generation: {db_exc}"
+        try:
+            await db.rollback()
+            await db.execute(
+                text(
+                    """
+UPDATE generation_jobs
+SET status = 'failed', failed_at = now(), error_message = :msg
+WHERE id = CAST(:job_id AS uuid)
+"""
+                ),
+                {"job_id": job_id, "msg": detail[:2000]},
+            )
+            await db.commit()
+        except Exception:
+            pass
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail) from db_exc
 
     result = await db.execute(
         text(
@@ -1438,6 +1461,276 @@ async def read_generated_music_file(
         media_type=guess_media_type(path, fallback_format=fallback_format),
         filename=path.name,
     )
+
+
+_AUDIO_MIME_TO_EXT: dict[str, str] = {
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/mp4": "m4a",
+    "audio/m4a": "m4a",
+    "audio/x-m4a": "m4a",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/wave": "wav",
+    "audio/flac": "flac",
+    "audio/x-flac": "flac",
+    "audio/ogg": "ogg",
+    "audio/opus": "opus",
+    "audio/aac": "aac",
+    "audio/x-aac": "aac",
+}
+
+_ALLOWED_AUDIO_EXTENSIONS: frozenset[str] = frozenset(
+    ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"]
+)
+
+
+@router.post("/music/upload", summary="Upload a custom audio file to staging (bypasses generation API)")
+async def upload_custom_music(
+    file: UploadFile = File(...),
+    artist_id: str = Form(...),
+    album_id: str = Form(...),
+    track_title: str = Form(min_length=1, max_length=500),
+    explicit: bool = Form(default=False),
+    lyrics: str | None = Form(default=None),
+    current_user: dict = Depends(_require_internal_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    # ── Validate file type ────────────────────────────────────────────────────
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+    ext = _AUDIO_MIME_TO_EXT.get(content_type)
+    if ext is None and file.filename:
+        suffix = file.filename.rsplit(".", 1)[-1].lower()
+        if suffix in _ALLOWED_AUDIO_EXTENSIONS:
+            ext = suffix
+    if ext is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unsupported file type '{content_type}'. Upload an audio file (mp3, wav, flac, ogg, m4a, aac, opus).",
+        )
+
+    # ── Persist to data/generated/music/ ─────────────────────────────────────
+    slug = re.sub(r"[^a-z0-9]+", "-", track_title.strip().lower()).strip("-")[:50]
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    filename = f"{timestamp}-{slug}.{ext}"
+    output_dir = DATA_DIR / "generated" / "music"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / filename
+
+    try:
+        contents = await file.read()
+        output_path.write_bytes(contents)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save uploaded file: {exc}",
+        ) from exc
+
+    storage_url = f"data/{output_path.relative_to(DATA_DIR).as_posix()}"
+
+    # ── Infer audio metadata ──────────────────────────────────────────────────
+    meta = infer_local_audio_metadata(storage_url) or {}
+    duration_ms = int(meta.get("duration_ms") or 0)
+    file_size_bytes = int(meta.get("file_size_bytes") or output_path.stat().st_size)
+    sample_rate_hz = meta.get("sample_rate_hz")
+    channels = meta.get("channels") or 2
+
+    # ── DB writes — mirror the post-generation pipeline ───────────────────────
+    input_params: dict[str, Any] = {
+        "source": "custom_upload",
+        "artistId": artist_id,
+        "albumId": album_id,
+        "trackTitle": track_title.strip(),
+        "explicit": explicit,
+        "originalFilename": file.filename,
+    }
+    output_metadata: dict[str, Any] = {
+        "storageUrl": storage_url,
+        "mimeType": content_type or f"audio/{ext}",
+        "outputFormat": ext,
+        "sampleRateHz": sample_rate_hz,
+        "channels": channels,
+        "fileSizeBytes": file_size_bytes,
+        "durationMs": duration_ms or None,
+    }
+
+    try:
+        # Create a generation_jobs record so it shows in "Recent generated files"
+        job_insert = await db.execute(
+            text(
+                """
+INSERT INTO generation_jobs (
+  job_type, status, input_params, output_metadata,
+  started_at, completed_at, created_by
+)
+VALUES (
+  'music_generation', 'completed',
+  CAST(:input_params AS jsonb),
+  CAST(:output_metadata AS jsonb),
+  now(), now(),
+  CAST(:created_by AS uuid)
+)
+RETURNING id::text
+"""
+            ),
+            {
+                "input_params": json.dumps(input_params),
+                "output_metadata": json.dumps(output_metadata),
+                "created_by": current_user["id"],
+            },
+        )
+        job_id = str(job_insert.scalar_one())
+
+        # Next track number for the album
+        track_num_row = await db.execute(
+            text("SELECT COALESCE(MAX(track_number), 0) + 1 AS next_num FROM tracks WHERE album_id = CAST(:album_id AS uuid)"),
+            {"album_id": album_id},
+        )
+        next_track_number = int(track_num_row.scalar_one())
+
+        track_insert = await db.execute(
+            text(
+                """
+INSERT INTO tracks (
+  title, album_id, primary_artist_id,
+  track_number, disc_number, duration_ms,
+  explicit, status, created_by
+)
+VALUES (
+  :title, CAST(:album_id AS uuid), CAST(:artist_id AS uuid),
+  :track_number, 1, :duration_ms,
+  :explicit, 'review', CAST(:created_by AS uuid)
+)
+RETURNING id::text
+"""
+            ),
+            {
+                "title": track_title.strip(),
+                "album_id": album_id,
+                "artist_id": artist_id,
+                "track_number": next_track_number,
+                "duration_ms": duration_ms or None,
+                "explicit": explicit,
+                "created_by": current_user["id"],
+            },
+        )
+        track_id = str(track_insert.scalar_one())
+
+        await db.execute(
+            text(
+                """
+INSERT INTO track_artists (track_id, artist_id, role, display_order)
+VALUES (CAST(:track_id AS uuid), CAST(:artist_id AS uuid), 'primary', 0)
+ON CONFLICT DO NOTHING
+"""
+            ),
+            {"track_id": track_id, "artist_id": artist_id},
+        )
+
+        await db.execute(
+            text(
+                """
+INSERT INTO track_audio_files (
+  track_id, quality, format, storage_url,
+  bitrate_kbps, sample_rate_hz, channels,
+  file_size_bytes, duration_ms
+)
+VALUES (
+  CAST(:track_id AS uuid), 'standard_256', :format, :storage_url,
+  :bitrate_kbps, :sample_rate_hz, :channels,
+  :file_size_bytes, :duration_ms
+)
+"""
+            ),
+            {
+                "track_id": track_id,
+                "format": ext,
+                "storage_url": storage_url,
+                "bitrate_kbps": None,
+                "sample_rate_hz": sample_rate_hz,
+                "channels": channels,
+                "file_size_bytes": file_size_bytes,
+                "duration_ms": duration_ms or None,
+            },
+        )
+
+        await db.execute(
+            text(
+                """
+UPDATE albums
+SET track_count = (
+  SELECT count(*) FROM tracks
+  WHERE album_id = CAST(:album_id AS uuid)
+    AND status != 'archived'
+)
+WHERE id = CAST(:album_id AS uuid)
+"""
+            ),
+            {"album_id": album_id},
+        )
+
+        if lyrics and lyrics.strip():
+            await db.execute(
+                text(
+                    """
+INSERT INTO lyrics (track_id, content, language, has_timestamps)
+VALUES (CAST(:track_id AS uuid), :content, 'en', false)
+ON CONFLICT (track_id) DO UPDATE
+  SET content = EXCLUDED.content, has_timestamps = EXCLUDED.has_timestamps
+"""
+                ),
+                {"track_id": track_id, "content": lyrics.strip()},
+            )
+
+        # Stitch trackId into output_metadata on the job
+        output_metadata["trackId"] = track_id
+        await db.execute(
+            text(
+                """
+UPDATE generation_jobs
+SET output_metadata = CAST(:output_metadata AS jsonb)
+WHERE id = CAST(:job_id AS uuid)
+"""
+            ),
+            {"job_id": job_id, "output_metadata": json.dumps(output_metadata)},
+        )
+
+        await db.commit()
+
+    except Exception as db_exc:
+        output_path.unlink(missing_ok=True)
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Upload succeeded but catalog write failed: {db_exc}",
+        ) from db_exc
+
+    result = await db.execute(
+        text(
+            """
+SELECT
+  id::text AS id,
+  status::text AS status,
+  input_params,
+  output_metadata,
+  error_message,
+  created_at,
+  started_at,
+  completed_at,
+  failed_at
+FROM generation_jobs
+WHERE id = CAST(:job_id AS uuid)
+"""
+        ),
+        {"job_id": job_id},
+    )
+    row = result.mappings().first()
+    if row is None:
+        raise HTTPException(status_code=500, detail="Upload succeeded but job record could not be loaded.")
+    return _serialize_music_job(row)
 
 
 @router.get("/artists", summary="List artists for internal management")

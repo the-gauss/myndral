@@ -9,6 +9,7 @@ import { humanizePlan } from '@/src/lib/format';
 import { useTheme } from '@/src/providers/ThemeProvider';
 import { getTheme } from '@/src/theme';
 import { useAuthStore } from '@/src/stores/authStore';
+import { hasStudioAccess } from '@/src/types/studio';
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -17,9 +18,19 @@ export default function AccountScreen() {
   const isPremium = useAuthStore((state) => state.isPremium);
   const clearSession = useAuthStore((state) => state.clearSession);
 
+  const studioAccess = hasStudioAccess(user?.role);
+
   async function handleLogout() {
     await clearSession();
     router.replace('/login');
+  }
+
+  function handleOpenStudio() {
+    if (studioAccess) {
+      router.push('/(studio)/artists');
+    } else {
+      router.push('/studio-access');
+    }
   }
 
   return (
@@ -135,6 +146,66 @@ export default function AccountScreen() {
             </Text>
           </GlassSurface>
         </View>
+      </GlassSurface>
+
+      {/* ── Creator Studio section ─────────────────────────────────────────────
+          Visible to all users. Creator-privileged accounts get a direct "Open
+          Studio" button; listener accounts get an "Activate Studio Access" flow
+          that lets them claim a studio role via a pre-shared access token.
+      ──────────────────────────────────────────────────────────────────────── */}
+      <GlassSurface style={{ padding: 18, gap: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <SymbolView name="waveform.circle.fill" size={18} tintColor={theme.colors.primary} />
+          <Text
+            style={{
+              color: theme.colors.text,
+              fontSize: 20,
+              fontWeight: '700',
+              fontFamily: theme.typography.displayFontFamily,
+            }}
+          >
+            Creator Studio
+          </Text>
+        </View>
+
+        <GlassSurface styleVariant="clear" style={{ padding: 14, gap: 6 }}>
+          <Text style={{ color: theme.colors.textMuted, fontSize: 14, lineHeight: 20 }}>
+            {studioAccess
+              ? 'You have creator access. Open Studio to manage artists, albums, and music generation.'
+              : 'Studio access lets you create artists, generate music, and manage the catalog. Activate with an access token.'}
+          </Text>
+        </GlassSurface>
+
+        <Pressable
+          onPress={handleOpenStudio}
+          style={({ pressed }) => ({
+            height: 52,
+            borderRadius: 22,
+            backgroundColor: studioAccess ? theme.colors.cta : theme.colors.glassBgHeavy,
+            borderWidth: studioAccess ? 0 : 1,
+            borderColor: theme.colors.primary + '60',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            opacity: pressed ? 0.8 : 1,
+          })}
+        >
+          <SymbolView
+            name={studioAccess ? 'arrow.right.circle.fill' : 'key.fill'}
+            size={17}
+            tintColor={studioAccess ? theme.colors.ctaText : theme.colors.primary}
+          />
+          <Text
+            style={{
+              color: studioAccess ? theme.colors.ctaText : theme.colors.primary,
+              fontSize: 15,
+              fontWeight: '700',
+            }}
+          >
+            {studioAccess ? 'Open Studio' : 'Activate Studio Access'}
+          </Text>
+        </Pressable>
       </GlassSurface>
 
       <View style={{ gap: 12 }}>

@@ -28,7 +28,9 @@ function RootShell() {
 
   const isAuthRoute = segments[0] === '(auth)';
   const isPlayerRoute = segments[0] === 'player';
-  const shouldShowMiniPlayer = !isAuthRoute && !isPlayerRoute;
+  // Suppress the music mini-player inside the Studio — it is a separate app context.
+  const isStudioRoute = segments[0] === '(studio)' || segments[0] === 'studio-access';
+  const shouldShowMiniPlayer = !isAuthRoute && !isPlayerRoute && !isStudioRoute;
   const miniPlayerBottomOffset = segments[0] === '(tabs)' ? insets.bottom + 78 : insets.bottom + 16;
 
   useEffect(() => {
@@ -54,6 +56,8 @@ function RootShell() {
       >
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(studio)" />
+        <Stack.Screen name="studio-access" />
         <Stack.Screen name="artist/[id]" />
         <Stack.Screen name="album/[id]" />
         <Stack.Screen name="playlist/[id]" />

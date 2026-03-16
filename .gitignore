@@ -19,8 +19,9 @@ build/
 htmlcov/
 
 # ── uv ────────────────────────────────────────────────────────────────────────
+# uv.lock is intentionally committed — it pins the full dependency graph for
+# reproducible Docker builds (uv sync --frozen in the Dockerfile requires it).
 .uv/
-uv.lock
 
 # ── Node / JS ─────────────────────────────────────────────────────────────────
 node_modules/

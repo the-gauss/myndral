@@ -8,7 +8,7 @@ import { PlaylistListItem } from '@/src/components/PlaylistListItem';
 import { ScreenView } from '@/src/components/ScreenView';
 import { SectionHeader } from '@/src/components/SectionHeader';
 import { TrackRow } from '@/src/components/TrackRow';
-import { useSearch } from '@/src/hooks/useCatalog';
+import { useCollectionState, useSearch } from '@/src/hooks/useCatalog';
 import { useTheme } from '@/src/providers/ThemeProvider';
 
 function useDebouncedValue(value: string, delay = 300) {
@@ -27,6 +27,11 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query);
   const searchQuery = useSearch(debouncedQuery, 12);
+  const collection = useCollectionState({
+    trackIds: searchQuery.data?.tracks.items.map((track) => track.id) ?? [],
+  });
+  const favoriteTrackIds = new Set(collection.data?.favorites.trackIds ?? []);
+  const libraryTrackIds = new Set(collection.data?.library.trackIds ?? []);
 
   const hasResults =
     Boolean(searchQuery.data?.tracks.items.length) ||
@@ -36,28 +41,16 @@ export default function SearchScreen() {
 
   return (
     <ScreenView>
-      <View style={{ gap: 6 }}>
-        <Text
-          style={{
-            color: theme.colors.text,
-            fontSize: 30,
-            fontWeight: '800',
-            fontFamily: theme.typography.displayFontFamily,
-          }}
-        >
-          Search
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.textMuted,
-            fontSize: 15,
-            lineHeight: 22,
-            fontFamily: theme.typography.bodyFontFamily,
-          }}
-        >
-          Artists, albums, songs, and playlists all search through the same API as the web player.
-        </Text>
-      </View>
+      <Text
+        style={{
+          color: theme.colors.text,
+          fontSize: 30,
+          fontWeight: '800',
+          fontFamily: theme.typography.displayFontFamily,
+        }}
+      >
+        Search
+      </Text>
 
       <TextInput
         value={query}
@@ -105,6 +98,8 @@ export default function SearchScreen() {
                     index={index + 1}
                     queue={searchQuery.data?.tracks.items}
                     showAlbum
+                    isFavorite={favoriteTrackIds.has(track.id)}
+                    isInLibrary={libraryTrackIds.has(track.id)}
                   />
                 ))}
               </View>

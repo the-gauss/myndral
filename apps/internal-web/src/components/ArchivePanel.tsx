@@ -41,7 +41,7 @@ const REVIEWER_ROLES = new Set(['content_reviewer', 'admin'])
 
 function SectionHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div className="border-b border-border bg-surface/70 px-4 py-3 text-sm font-medium">
+    <div className="studio-divider studio-table-head border-b px-4 py-3 text-sm font-medium">
       {label} ({count})
     </div>
   )
@@ -96,7 +96,7 @@ export default function ArchivePanel() {
     <section className="space-y-6">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="rounded-lg border border-border bg-surface/40 p-4">
+      <div className="studio-card rounded-[24px] p-4">
         <h3 className="text-lg font-semibold">Archive</h3>
         <p className="mt-1 text-sm text-muted-fg">
           Content that was rejected from staging.
@@ -109,18 +109,18 @@ export default function ArchivePanel() {
       {archive.isLoading && <p className="text-sm text-muted-fg">Loading archive…</p>}
 
       {!archive.isLoading && totalAll === 0 && (
-        <div className="rounded-lg border border-border bg-surface/20 px-4 py-8 text-center text-sm text-muted-fg">
+        <div className="studio-card-soft rounded-[24px] px-4 py-8 text-center text-sm text-muted-fg">
           Archive is empty.
         </div>
       )}
 
       {/* ── Artists ──────────────────────────────────────────────────────── */}
       {artists.length > 0 && (
-        <div className="rounded-lg border border-border">
+        <div className="studio-table-card rounded-[24px]">
           <SectionHeader label="Artists" count={archive.data?.totalArtists ?? 0} />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-surface/40 text-left">
+              <thead className="studio-table-head text-left">
                 <tr>
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Creator</th>
@@ -131,7 +131,7 @@ export default function ArchivePanel() {
               </thead>
               <tbody>
                 {artists.map((artist) => (
-                  <tr key={artist.id} className="border-t border-border/60 align-top">
+                  <tr key={artist.id} className="studio-table-row border-t align-top">
                     <td className="px-3 py-2">
                       <p className="font-medium">{artist.name}</p>
                       <p className="text-xs text-muted-fg">{artist.slug}</p>
@@ -149,7 +149,7 @@ export default function ArchivePanel() {
                     {isReviewer && (
                       <td className="px-3 py-2">
                         <button
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface disabled:opacity-60"
+                          className="studio-outline-button rounded px-2 py-1 text-xs disabled:opacity-60"
                           disabled={restoreArtistMutation.isPending}
                           onClick={() => restoreArtistMutation.mutate(artist.id)}
                         >
@@ -170,11 +170,11 @@ export default function ArchivePanel() {
 
       {/* ── Albums ───────────────────────────────────────────────────────── */}
       {albums.length > 0 && (
-        <div className="rounded-lg border border-border">
+        <div className="studio-table-card rounded-[24px]">
           <SectionHeader label="Albums" count={archive.data?.totalAlbums ?? 0} />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-surface/40 text-left">
+              <thead className="studio-table-head text-left">
                 <tr>
                   <th className="px-3 py-2">Title</th>
                   <th className="px-3 py-2">Artist</th>
@@ -186,7 +186,7 @@ export default function ArchivePanel() {
               </thead>
               <tbody>
                 {albums.map((album) => (
-                  <tr key={album.id} className="border-t border-border/60 align-top">
+                  <tr key={album.id} className="studio-table-row border-t align-top">
                     <td className="px-3 py-2">
                       <p className="font-medium">{album.title}</p>
                       <p className="text-xs text-muted-fg capitalize">{album.albumType}</p>
@@ -205,7 +205,7 @@ export default function ArchivePanel() {
                     {isReviewer && (
                       <td className="px-3 py-2">
                         <button
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface disabled:opacity-60"
+                          className="studio-outline-button rounded px-2 py-1 text-xs disabled:opacity-60"
                           disabled={restoreAlbumMutation.isPending}
                           onClick={() => restoreAlbumMutation.mutate(album.id)}
                         >
@@ -226,11 +226,11 @@ export default function ArchivePanel() {
 
       {/* ── Tracks ───────────────────────────────────────────────────────── */}
       {tracks.length > 0 && (
-        <div className="rounded-lg border border-border">
+        <div className="studio-table-card rounded-[24px]">
           <SectionHeader label="Tracks" count={archive.data?.totalTracks ?? 0} />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-surface/40 text-left">
+              <thead className="studio-table-head text-left">
                 <tr>
                   <th className="px-3 py-2">Title</th>
                   <th className="px-3 py-2">Artist / Album</th>
@@ -243,7 +243,7 @@ export default function ArchivePanel() {
               </thead>
               <tbody>
                 {tracks.map((track) => (
-                  <tr key={track.id} className="border-t border-border/60 align-top">
+                  <tr key={track.id} className="studio-table-row border-t align-top">
                     <td className="px-3 py-2">
                       <p className="font-medium">{track.title}</p>
                       {track.explicit && (
@@ -268,7 +268,7 @@ export default function ArchivePanel() {
                     {isReviewer && (
                       <td className="px-3 py-2">
                         <button
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface disabled:opacity-60"
+                          className="studio-outline-button rounded px-2 py-1 text-xs disabled:opacity-60"
                           disabled={restoreTrackMutation.isPending}
                           onClick={() => restoreTrackMutation.mutate(track.id)}
                         >

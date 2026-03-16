@@ -1,39 +1,45 @@
-import { useRouter } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 import { AlbumCard } from '@/src/components/AlbumCard';
 import { ArtistCard } from '@/src/components/ArtistCard';
-import { GlassSurface } from '@/src/components/GlassSurface';
 import { LoadingView } from '@/src/components/LoadingView';
+import { PlaylistListItem } from '@/src/components/PlaylistListItem';
 import { ScreenView } from '@/src/components/ScreenView';
 import { SectionHeader } from '@/src/components/SectionHeader';
 import { TrackRow } from '@/src/components/TrackRow';
 import { greeting } from '@/src/lib/format';
-import { useFeaturedTracks, useAlbums, useArtists } from '@/src/hooks/useCatalog';
+import {
+  useAlbums,
+  useArtists,
+  useCollectionState,
+  useFeaturedTracks,
+  usePlaylists,
+  useTracks,
+} from '@/src/hooks/useCatalog';
 import { useTheme } from '@/src/providers/ThemeProvider';
 import { useAuthStore } from '@/src/stores/authStore';
 
 export default function HomeScreen() {
-  const router = useRouter();
   const { theme } = useTheme();
   const user = useAuthStore((state) => state.user);
   const albums = useAlbums(10);
   const artists = useArtists(8);
   const featuredTracks = useFeaturedTracks(10);
+  const browseTracks = useTracks(8);
+  const playlists = usePlaylists(4);
+  const collection = useCollectionState({
+    trackIds: Array.from(
+      new Set([
+        ...(featuredTracks.data?.items.map((track) => track.id) ?? []),
+        ...(browseTracks.data?.items.map((track) => track.id) ?? []),
+      ]),
+    ),
+  });
+  const favoriteTrackIds = new Set(collection.data?.favorites.trackIds ?? []);
+  const libraryTrackIds = new Set(collection.data?.library.trackIds ?? []);
 
   return (
     <ScreenView>
-      <GlassSurface style={{ padding: 20, gap: 10 }}>
-        <Text
-          style={{
-            color: theme.colors.textSubtle,
-            fontSize: 12,
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: 0.7,
-            }}
-        >
-          Listener Home
-        </Text>
+      <View style={{ gap: 4 }}>
         <Text
           style={{
             color: theme.colors.text,
@@ -48,22 +54,16 @@ export default function HomeScreen() {
         <Text
           style={{
             color: theme.colors.textMuted,
-            fontSize: 15,
-            lineHeight: 22,
+            fontSize: 14,
             fontFamily: theme.typography.bodyFontFamily,
           }}
         >
-          Every artist, album, and lyric here is AI-born. No catalog filler, no copyright risk,
-          just an always-on synthetic music universe.
+          Fresh releases, browse picks, and saved listening cues in one place.
         </Text>
-      </GlassSurface>
+      </View>
 
       <View>
-        <SectionHeader
-          title="New Releases"
-          actionLabel="See all"
-          onActionPress={() => router.push({ pathname: '/browse', params: { kind: 'albums' } })}
-        />
+        <SectionHeader title="New Releases" />
         {albums.isLoading ? (
           <LoadingView label="Loading new releases..." />
         ) : (
@@ -74,11 +74,7 @@ export default function HomeScreen() {
       </View>
 
       <View>
-        <SectionHeader
-          title="Featured Artists"
-          actionLabel="See all"
-          onActionPress={() => router.push({ pathname: '/browse', params: { kind: 'artists' } })}
-        />
+        <SectionHeader title="Featured Artists" />
         {artists.isLoading ? (
           <LoadingView label="Loading artists..." />
         ) : (
@@ -89,11 +85,7 @@ export default function HomeScreen() {
       </View>
 
       <View>
-        <SectionHeader
-          title="Trending Tracks"
-          actionLabel="See all"
-          onActionPress={() => router.push({ pathname: '/browse', params: { kind: 'songs' } })}
-        />
+        <SectionHeader title="Trending Tracks" />
         {featuredTracks.isLoading ? (
           <LoadingView label="Loading tracks..." />
         ) : (
@@ -105,7 +97,65 @@ export default function HomeScreen() {
                 index={index + 1}
                 queue={featuredTracks.data?.items}
                 showAlbum
+                isFavorite={favoriteTrackIds.has(track.id)}
+                isInLibrary={libraryTrackIds.has(track.id)}
               />
+            ))}
+          </View>
+        )}
+      </View>
+
+      <View>
+        <SectionHeader title="Artists" />
+        {artists.isLoading ? (
+          <LoadingView label="Loading artists..." />
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+            {artists.data?.items.map((artist) => <ArtistCard key={`browse-${artist.id}`} artist={artist} />)}
+          </ScrollView>
+        )}
+      </View>
+
+      <View>
+        <SectionHeader title="Albums" />
+        {albums.isLoading ? (
+          <LoadingView label="Loading albums..." />
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+            {albums.data?.items.map((album) => <AlbumCard key={`browse-${album.id}`} album={album} />)}
+          </ScrollView>
+        )}
+      </View>
+
+      <View>
+        <SectionHeader title="Songs" />
+        {browseTracks.isLoading ? (
+          <LoadingView label="Loading songs..." />
+        ) : (
+          <View style={{ gap: 10 }}>
+            {browseTracks.data?.items.map((track, index) => (
+              <TrackRow
+                key={`browse-${track.id}`}
+                track={track}
+                index={index + 1}
+                queue={browseTracks.data?.items}
+                showAlbum
+                isFavorite={favoriteTrackIds.has(track.id)}
+                isInLibrary={libraryTrackIds.has(track.id)}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+
+      <View>
+        <SectionHeader title="Playlists" />
+        {playlists.isLoading ? (
+          <LoadingView label="Loading playlists..." />
+        ) : (
+          <View style={{ gap: 10 }}>
+            {playlists.data?.items.map((playlist) => (
+              <PlaylistListItem key={`browse-${playlist.id}`} playlist={playlist} />
             ))}
           </View>
         )}

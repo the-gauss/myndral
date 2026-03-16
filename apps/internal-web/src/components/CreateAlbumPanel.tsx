@@ -297,7 +297,7 @@ export default function CreateAlbumPanel() {
             <button
               onClick={() => { setPreview(null); createMutation.reset() }}
               disabled={createMutation.isPending}
-              className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface disabled:opacity-60"
+              className="studio-outline-button rounded-md px-4 py-2 text-sm disabled:opacity-60"
             >
               Edit
             </button>
@@ -307,7 +307,7 @@ export default function CreateAlbumPanel() {
 
       {/* ── Create form ─────────────────────────────────────────────────────── */}
       {!preview && (
-        <form onSubmit={handlePreview} className="rounded-lg border border-border bg-surface/40 p-5 space-y-4">
+        <form onSubmit={handlePreview} className="studio-card rounded-[26px] p-5 space-y-4">
           <h3 className="text-base font-semibold">New album</h3>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -410,7 +410,7 @@ export default function CreateAlbumPanel() {
       {/* ── Catalog browse ──────────────────────────────────────────────────── */}
       <div className="space-y-3">
         <h3 className="text-base font-semibold">Album catalog</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 rounded-lg border border-border bg-surface/40">
+        <div className="studio-card rounded-[24px] grid grid-cols-1 gap-3 p-4 md:grid-cols-4">
           <label className="text-sm">
             Search
             <input
@@ -452,9 +452,9 @@ export default function CreateAlbumPanel() {
         {albums.isLoading && <p className="text-sm text-muted-fg">Loading…</p>}
 
         {!albums.isLoading && (albums.data?.items ?? []).length > 0 && (
-          <div className="rounded-lg border border-border overflow-hidden">
+          <div className="studio-table-card rounded-[24px] overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-surface/70 text-left">
+              <thead className="studio-table-head text-left">
                 <tr>
                   <th className="px-3 py-2">Title</th>
                   <th className="px-3 py-2">Artist</th>
@@ -467,7 +467,7 @@ export default function CreateAlbumPanel() {
               </thead>
               <tbody>
                 {(albums.data?.items ?? []).map((album: AlbumItem) => (
-                  <tr key={album.id} className="border-t border-border/60">
+                  <tr key={album.id} className="studio-table-row border-t">
                     <td className="px-3 py-2">
                       <p className="font-medium">{album.title}</p>
                       <p className="text-xs text-muted-fg">{album.slug}</p>
@@ -487,7 +487,7 @@ export default function CreateAlbumPanel() {
                         {album.status !== 'archived' && (
                           <button
                             onClick={() => openEditAlbum(album)}
-                            className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
+                            className="studio-outline-button rounded px-2 py-1 text-xs"
                           >
                             Edit
                           </button>
@@ -518,8 +518,8 @@ export default function CreateAlbumPanel() {
       {/* ── Edit album modal ────────────────────────────────────────────────── */}
       {editTarget && editForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-background shadow-2xl">
-            <div className="flex items-start justify-between border-b border-border px-5 py-4">
+          <div className="studio-modal-card w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[28px]">
+            <div className="studio-divider flex items-start justify-between border-b px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold">Edit album</h2>
                 <p className="mt-0.5 text-xs text-muted-fg">Title and artist cannot be changed after creation.</p>
@@ -536,11 +536,11 @@ export default function CreateAlbumPanel() {
             <div className="p-5 space-y-4">
               {/* Immutable fields — displayed read-only */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-md border border-border/60 bg-surface/30 px-3 py-2 text-sm">
+                <div className="studio-readonly rounded-2xl px-3 py-2 text-sm">
                   <p className="text-xs text-muted-fg mb-0.5">Title (immutable)</p>
                   <p className="font-medium">{editTarget.title}</p>
                 </div>
-                <div className="rounded-md border border-border/60 bg-surface/30 px-3 py-2 text-sm">
+                <div className="studio-readonly rounded-2xl px-3 py-2 text-sm">
                   <p className="text-xs text-muted-fg mb-0.5">Artist (immutable)</p>
                   <p className="font-medium">{editTarget.artistName}</p>
                 </div>
@@ -622,7 +622,7 @@ export default function CreateAlbumPanel() {
                 <button
                   onClick={closeEdit}
                   disabled={updateMutation.isPending}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface disabled:opacity-60"
+                  className="studio-outline-button rounded-md px-4 py-2 text-sm disabled:opacity-60"
                 >
                   Cancel
                 </button>
@@ -635,7 +635,7 @@ export default function CreateAlbumPanel() {
       {/* ── Revoke confirmation ─────────────────────────────────────────────── */}
       {revokeTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-xl border border-red-500/30 bg-background shadow-2xl">
+          <div className="studio-modal-card w-full max-w-md rounded-[28px] ring-1 ring-inset ring-danger/20">
             <div className="p-5 space-y-4">
               <h2 className="text-base font-semibold text-red-300">Revoke published album</h2>
               <p className="text-sm text-foreground">
@@ -670,7 +670,7 @@ export default function CreateAlbumPanel() {
                 <button
                   onClick={() => { setRevokeTarget(null); setRevokeNotes(''); revokeMutation.reset() }}
                   disabled={revokeMutation.isPending}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface disabled:opacity-60"
+                  className="studio-outline-button rounded-md px-4 py-2 text-sm disabled:opacity-60"
                 >
                   Cancel
                 </button>

@@ -1,5 +1,7 @@
+import { BlurView } from 'expo-blur';
 import { SymbolView } from 'expo-symbols';
 import { Redirect, Tabs } from 'expo-router';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/src/providers/ThemeProvider';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -7,8 +9,9 @@ import { useAuthStore } from '@/src/stores/authStore';
 export default function TabLayout() {
   const hydrated = useAuthStore((state) => state.hydrated);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const { theme } = useTheme();
+  const { theme, themeName } = useTheme();
   const insets = useSafeAreaInsets();
+  const isPaper = themeName === 'paper';
 
   if (!hydrated) {
     return null;
@@ -31,10 +34,32 @@ export default function TabLayout() {
           height: 64 + insets.bottom,
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 10),
-          backgroundColor: theme.colors.sidebarBg,
+          backgroundColor: isPaper ? theme.colors.surfaceRaised : 'transparent',
           borderTopWidth: 1,
-          borderTopColor: theme.colors.surfaceBorder,
+          borderTopColor: isPaper ? theme.colors.surfaceBorder : theme.colors.glassBorder,
+          shadowColor: theme.isDark ? theme.colors.secondary : theme.colors.primary,
+          shadowOpacity: isPaper ? 0.06 : (theme.isDark ? 0.12 : 0.06),
+          shadowRadius: isPaper ? 18 : 24,
+          shadowOffset: { width: 0, height: -10 },
+          overflow: 'hidden',
         },
+        tabBarBackground: () =>
+          Platform.OS === 'ios' && !isPaper ? (
+            <BlurView
+              style={StyleSheet.absoluteFill}
+              intensity={82}
+              tint={theme.isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'}
+            />
+          ) : (
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  backgroundColor: theme.colors.glassBgHeavy,
+                },
+              ]}
+            />
+          ),
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textSubtle,
         tabBarLabelStyle: {
@@ -71,10 +96,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="browse"
         options={{
-          title: 'Browse',
-          tabBarIcon: ({ color }) => (
-            <SymbolView name="square.grid.2x2.fill" tintColor={color} size={19} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen

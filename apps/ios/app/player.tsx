@@ -44,7 +44,7 @@ export default function PlayerScreen() {
         </Pressable>
         <EmptyState
           title="Nothing is playing"
-          message="Start playback from Home, Search, Browse, or any album or playlist screen."
+          message="Start playback from Home, Search, Library, or any album or playlist screen."
           symbol="play.slash"
         />
       </ScreenView>

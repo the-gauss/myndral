@@ -5,6 +5,44 @@ Each entry follows STAR format (Situation → Task → Action → Result).
 
 ---
 
+## 2026-03-16 — Cross-Platform Glass Redesign: Shared Palette Translation Across Web, Studio, and iOS
+
+**Situation:** The repo had three user-facing surfaces with diverging presentation layers: the web player, the internal Studio app, and the new iOS client. A major redesign needed to land consistently across all of them, while keeping future brand-kit updates centralized in `shared/brand` instead of duplicated inside each app.
+
+**Task:** Re-theme Light and Dark mode around a new slate/steel/orange palette, introduce a more premium glass-and-vibrancy visual system, and keep Minkowski visually stable while making the redesign reusable across platforms.
+
+**Action:**
+1. **Palette moved through the shared brand source of truth** — updated `shared/brand/tokens.css` and `shared/brand/theme.ts` so Light and Dark now derive from the new palette directly at the token layer. Semantic RGB helpers were added so web Tailwind themes and native iOS theme generation can both consume the same shared values without app-specific color duplication.
+
+2. **Semantic remapping in each web client** — both `apps/web` and `apps/internal-web` now import the shared token file and map Tailwind semantic colors (`background`, `foreground`, `accent`, `danger`, etc.) from shared brand variables. This made it possible to redesign cards, navigation, overlays, and auth forms with token-driven classes rather than hardcoded palette values.
+
+3. **Reusable glass primitives instead of one-off styling** — introduced shared UI affordances such as glass panels, pills, and glass inputs in the web CSS layers, and strengthened the native `GlassSurface` primitive plus translucent tab bar treatment on iOS. The redesign therefore propagates by composing a small set of branded primitives rather than repainting every screen by hand.
+
+4. **Motion tuned as a system, not decoration** — slowed interaction timing curves and added soft entrance/ambient movement patterns so the redesign feels deliberate and premium without introducing flashy, high-frequency animation. Motion remains tied to surfaces, transitions, and hierarchy rather than ornamental effects.
+
+**Result:** The repo now has a unified first-pass redesign spanning the listener web player, Studio, and iOS, with Light/Dark palette changes flowing from `shared/brand` into all three clients. Future brand updates can primarily happen in the shared token layer, while platform-specific code focuses on layout and interaction patterns instead of duplicating visual constants.
+
+---
+
+## 2026-03-16 — Shared Account Collection Model: Admin User Management + Library/Favorites Parity
+
+**Situation:** The product already used one shared user account for the listener player and Studio, but the apps exposed only fragments of that model. Studio lacked an admin surface for inspecting shared users, listener library/favorite actions were mostly decorative, and playlists could not be created or managed consistently across web and iOS.
+
+**Task:** Extend the API and all three clients so shared accounts can be administered centrally, while listener-facing collection features become real platform behavior: saved library items, favorites, playlist creation, queue actions, and account management.
+
+**Action:**
+1. **Separated “library” from “favorites” at the data model level** — added dedicated persistence for saved tracks, liked albums, and liked artists, then exposed explicit `/library/*` and `/favorites/*` endpoints plus a `collection-state` aggregation endpoint. This keeps “save for later” distinct from “like” semantics without forcing the clients to infer state from overloaded endpoints.
+
+2. **Made playlist management a first-class shared API** — implemented playlist creation, metadata edits, track add/remove/reorder flows, editable-only playlist listing, and richer playlist serialization (`trackCount`, `canEdit`, `isInLibrary`, `ownerDisplayName`). Both web and iOS now build create-playlist and add-to-playlist UX directly against the same contract.
+
+3. **Added an internal admin user-management router instead of splitting account systems** — introduced `/v1/internal/users` and `/v1/internal/subscription-plans` so Studio admins can inspect shared users, subscription plans, privileges, and account activation state from one place. Guardrails prevent destructive self-edits such as self-demotion or self-deactivation.
+
+4. **Aligned the clients around one collection experience** — Studio received an admin-only Users panel, the web player gained working favorites/library actions plus an account menu and account page, and iOS gained saved/favorites library sections, playlist creation, and long-press track actions. This preserves platform-specific UX while keeping the underlying product model consistent.
+
+**Result:** Shared accounts are now visible and manageable in Studio, while listener collection behavior works across web and iOS using the same API primitives. The repo moved from placeholder interactions to a coherent multi-client model for user administration, playlists, library saves, favorites, and queue actions without breaking existing auth or catalog flows.
+
+---
+
 ## 2026-03-16 — iOS Client First Draft: Shared Brand Sync + Web-Parity API Surface
 
 **Situation:** The repo had a production web client and API, but no iOS app. The new client needed to match the currently working web listener experience without changing existing backend or web code, and brand-sensitive presentation had to stay centralized in `shared/brand`.
@@ -21,6 +59,31 @@ Each entry follows STAR format (Situation → Task → Action → Result).
 4. **Native-first interaction model** — translated the web feature set into iOS patterns: tab navigation, stack detail screens, a mini player plus full player, secure local auth storage, and share-sheet based export flows. This preserved product parity while respecting Apple UI expectations.
 
 **Result:** The repo now has a first-draft iOS client that is API-compatible with the current web product, keeps brand-driven styling centralized, and can evolve without entangling existing platforms. Validation passed through TypeScript checks, Expo iOS bundling, and native prebuild/CocoaPods setup; the only remaining host-side blocker was the machine missing Apple's simulator platform package for final Xcode compilation.
+
+---
+
+## 2026-03-16 — iOS Creator Studio: Dual-App Navigation Pattern Within a Single Binary
+
+**Situation:** The product had a fully functional web-based Creator Studio for content editors and reviewers, but iOS users had no access to it. The Studio is a fundamentally different UX from the listener music app — different navigation, different data, different privilege model — so simply adding more screens to the existing tab bar would have produced an incoherent product.
+
+**Task:** Bring the full Studio feature set (Artist/Album/Song creation with AI generation, file upload, staging review queue) to iOS without muddying the listener experience, and support image/audio upload, role gating, and live audio preview natively.
+
+**Action:**
+1. **Separate Expo Router route group as a parallel "app"** — rather than a runtime mode-store toggle that conditionally renders different screen trees, the Studio lives in its own `(studio)` route group with its own `Tabs` navigator. Switching from listener → Studio is a single `router.replace('/(studio)/artists')` call; switching back is `router.replace('/')`. This gives a clean "two different apps" experience while keeping navigation state predictable and auth-gate logic colocated in each layout.
+
+2. **Auth gate in layout, not in every screen** — `(studio)/_layout.tsx` checks `hasStudioAccess(user?.role)` after hydration and issues a declarative `<Redirect>` before the Tabs tree renders. Unauthenticated users hit `/login`; listeners hit `/studio-access`. This pattern is idiomatic Expo Router and centralizes access control rather than scattering guard logic across four screen files.
+
+3. **Studio-access token claim as a separate stack route** — rather than a modal or inline form in the account screen, the claim flow (`/studio-access`) is a full stack screen. The API call (`POST /v1/auth/studio-claim`) returns a fresh JWT and updated user; `setSession()` updates the Zustand store in place so the session upgrades immediately without re-login, then `router.replace('/(studio)/artists')` completes the transition.
+
+4. **Mini-player suppression via segment detection** — the root `_layout.tsx` already conditions the floating mini player on various route checks. Added `segments[0] === '(studio)' || segments[0] === 'studio-access'` to the guard so the music playback UI is fully hidden in Studio context without any cross-store coupling.
+
+5. **Native FormData uploads for image and audio** — React Native has no browser `File` object. Uploads use `form.append('file', { uri, type, name } as unknown as Blob)` with an explicit `Content-Type: 'multipart/form-data'` header. Unlike the browser pattern (where setting `Content-Type` to `null` lets the runtime add the boundary), the RN `fetch` layer handles boundary injection automatically when the body is a `FormData` instance.
+
+6. **expo-audio for authenticated audio preview** — the web Studio uses `URL.createObjectURL(blob)` which doesn't exist in RN. iOS Studio uses `expo-audio`'s `createAudioPlayer` directly with the authenticated proxy URL (`/v1/internal/music/file?storageUrl=…` + Authorization header). This works for both staging previews and the jobs list without any blob plumbing.
+
+7. **Role-based capability model** — `hasStudioAccess`, `canReview`, `canEdit` helpers in `src/types/studio.ts` cover the three token types (content_editor, content_reviewer, admin). The Songs screen role-gates the Generate/Upload tabs; the Staging screen hides Approve/Reject/Revision buttons for non-reviewers. Checking role capability at render time (not just at route entry) ensures viewers don't see actions they can't perform.
+
+**Result:** iOS now ships a full Creator Studio as a parallel app inside the same binary — Artists, Albums, Songs (AI generation + upload), and Staging with approve/reject/revision flows. Privilege escalation happens without re-login. Audio preview, image upload, and document upload all work natively. The listener music experience is completely unaffected.
 
 ---
 

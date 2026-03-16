@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 import { GlassSurface } from '@/src/components/GlassSurface';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { RemoteArtwork } from '@/src/components/RemoteArtwork';
@@ -8,6 +9,7 @@ import { humanizePlan } from '@/src/lib/format';
 import { useTheme } from '@/src/providers/ThemeProvider';
 import { getTheme } from '@/src/theme';
 import { useAuthStore } from '@/src/stores/authStore';
+import { hasStudioAccess } from '@/src/types/studio';
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -16,35 +18,33 @@ export default function AccountScreen() {
   const isPremium = useAuthStore((state) => state.isPremium);
   const clearSession = useAuthStore((state) => state.clearSession);
 
+  const studioAccess = hasStudioAccess(user?.role);
+
   async function handleLogout() {
     await clearSession();
     router.replace('/login');
   }
 
+  function handleOpenStudio() {
+    if (studioAccess) {
+      router.push('/(studio)/artists');
+    } else {
+      router.push('/studio-access');
+    }
+  }
+
   return (
     <ScreenView>
-      <View style={{ gap: 6 }}>
-        <Text
-          style={{
-            color: theme.colors.text,
-            fontSize: 30,
-            fontWeight: '800',
-            fontFamily: theme.typography.displayFontFamily,
-          }}
-        >
-          Account
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.textMuted,
-            fontSize: 15,
-            lineHeight: 22,
-            fontFamily: theme.typography.bodyFontFamily,
-          }}
-        >
-          Profile, subscription status, theme controls, and session actions all live here.
-        </Text>
-      </View>
+      <Text
+        style={{
+          color: theme.colors.text,
+          fontSize: 30,
+          fontWeight: '800',
+          fontFamily: theme.typography.displayFontFamily,
+        }}
+      >
+        Account
+      </Text>
 
       <GlassSurface style={{ padding: 20, gap: 16 }}>
         <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
@@ -71,6 +71,141 @@ export default function AccountScreen() {
             </Text>
           </View>
         </View>
+
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <GlassSurface style={{ flex: 1, padding: 14, gap: 6 }}>
+            <Text
+              style={{
+                color: theme.colors.textSubtle,
+                fontSize: 11,
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: 0.7,
+              }}
+            >
+              Privilege
+            </Text>
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 15,
+                fontWeight: '700',
+                fontFamily: theme.typography.displayFontFamily,
+              }}
+            >
+              {user?.role?.replace(/_/g, ' ') ?? 'listener'}
+            </Text>
+          </GlassSurface>
+
+          <GlassSurface style={{ flex: 1, padding: 14, gap: 6 }}>
+            <Text
+              style={{
+                color: theme.colors.textSubtle,
+                fontSize: 11,
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: 0.7,
+              }}
+            >
+              Streaming
+            </Text>
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 15,
+                fontWeight: '700',
+                fontFamily: theme.typography.displayFontFamily,
+              }}
+            >
+              {isPremium ? 'Premium' : 'Free'}
+            </Text>
+          </GlassSurface>
+        </View>
+      </GlassSurface>
+
+      <GlassSurface style={{ padding: 18, gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <SymbolView name="creditcard.fill" size={18} tintColor={theme.colors.secondary} />
+          <Text
+            style={{
+              color: theme.colors.text,
+              fontSize: 20,
+              fontWeight: '700',
+              fontFamily: theme.typography.displayFontFamily,
+            }}
+          >
+            Billing & Subscription
+          </Text>
+        </View>
+        <View style={{ gap: 10 }}>
+          <GlassSurface style={{ padding: 14, gap: 6 }}>
+            <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>
+              {isPremium
+                ? 'High-fidelity streaming, exports, and Minkowski theme are active on this account.'
+                : 'Free access is active. Upgrade to unlock exports and Minkowski theme.'}
+            </Text>
+          </GlassSurface>
+        </View>
+      </GlassSurface>
+
+      {/* ── Creator Studio section ─────────────────────────────────────────────
+          Visible to all users. Creator-privileged accounts get a direct "Open
+          Studio" button; listener accounts get an "Activate Studio Access" flow
+          that lets them claim a studio role via a pre-shared access token.
+      ──────────────────────────────────────────────────────────────────────── */}
+      <GlassSurface style={{ padding: 18, gap: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <SymbolView name="waveform.circle.fill" size={18} tintColor={theme.colors.primary} />
+          <Text
+            style={{
+              color: theme.colors.text,
+              fontSize: 20,
+              fontWeight: '700',
+              fontFamily: theme.typography.displayFontFamily,
+            }}
+          >
+            Creator Studio
+          </Text>
+        </View>
+
+        <GlassSurface styleVariant="clear" style={{ padding: 14, gap: 6 }}>
+          <Text style={{ color: theme.colors.textMuted, fontSize: 14, lineHeight: 20 }}>
+            {studioAccess
+              ? 'You have creator access. Open Studio to manage artists, albums, and music generation.'
+              : 'Studio access lets you create artists, generate music, and manage the catalog. Activate with an access token.'}
+          </Text>
+        </GlassSurface>
+
+        <Pressable
+          onPress={handleOpenStudio}
+          style={({ pressed }) => ({
+            height: 52,
+            borderRadius: 22,
+            backgroundColor: studioAccess ? theme.colors.cta : theme.colors.glassBgHeavy,
+            borderWidth: studioAccess ? 0 : 1,
+            borderColor: theme.colors.primary + '60',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            opacity: pressed ? 0.8 : 1,
+          })}
+        >
+          <SymbolView
+            name={studioAccess ? 'arrow.right.circle.fill' : 'key.fill'}
+            size={17}
+            tintColor={studioAccess ? theme.colors.ctaText : theme.colors.primary}
+          />
+          <Text
+            style={{
+              color: studioAccess ? theme.colors.ctaText : theme.colors.primary,
+              fontSize: 15,
+              fontWeight: '700',
+            }}
+          >
+            {studioAccess ? 'Open Studio' : 'Activate Studio Access'}
+          </Text>
+        </Pressable>
       </GlassSurface>
 
       <View style={{ gap: 12 }}>
@@ -82,7 +217,7 @@ export default function AccountScreen() {
             fontFamily: theme.typography.displayFontFamily,
           }}
         >
-          Themes
+          Settings
         </Text>
         {options.map((option) => {
           const previewTheme = getTheme(option.name);

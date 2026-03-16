@@ -21,6 +21,21 @@ export function register(payload: RegisterRequest) {
   return api.post<AuthResponse>('/v1/auth/register', payload).then((response) => response.data);
 }
 
+interface StudioClaimRequest {
+  username: string;
+  password: string;
+  studio_access_token: string;
+}
+
+/**
+ * Upgrades an existing listener account to a studio role using a pre-shared
+ * access token. Returns a fresh JWT and updated user — call setSession()
+ * immediately after to apply the new privileges without requiring re-login.
+ */
+export function studioClaim(payload: StudioClaimRequest) {
+  return api.post<AuthResponse>('/v1/auth/studio-claim', payload).then((response) => response.data);
+}
+
 export function getMe(token?: string | null) {
   return api
     .get<User>('/v1/users/me', withBearerToken(token))

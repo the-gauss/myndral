@@ -1,6 +1,7 @@
 export type ContentStatus = 'review' | 'published' | 'archived'
 export type AlbumType = 'album' | 'single' | 'ep' | 'compilation'
 export type UserRole = 'listener' | 'content_editor' | 'content_reviewer' | 'admin'
+export type SubscriptionPlan = 'free' | 'premium_monthly' | 'premium_annual'
 export type MusicGenerationStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled'
 export type StagingReviewAction = 'sent_for_review' | 'approved' | 'rejected'
 export type EntityType = 'artist' | 'album' | 'track'
@@ -35,7 +36,31 @@ export interface InternalUser {
   displayName: string
   avatarUrl?: string | null
   role: UserRole
+  subscriptionPlan?: SubscriptionPlan
   createdAt: string
+}
+
+export interface SubscriptionPlanOption {
+  slug: SubscriptionPlan
+  displayName: string
+  priceCents: number
+  currency: string
+  billingInterval?: 'monthly' | 'annual' | null
+  features: Record<string, unknown>
+  sortOrder: number
+}
+
+export interface AdminManagedUser {
+  id: string
+  username: string
+  email: string
+  displayName: string
+  avatarUrl?: string | null
+  role: UserRole
+  subscriptionPlan: SubscriptionPlan
+  isActive: boolean
+  createdAt: string
+  privileges: string[]
 }
 
 export interface Genre {

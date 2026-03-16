@@ -10,11 +10,13 @@ import type {
   Notification,
   NotificationList,
   Paginated,
+  SubscriptionPlanOption,
   StagingQueue,
   TrackItem,
   ContentStatus,
   AlbumType,
   InternalUser,
+  AdminManagedUser,
 } from '../types'
 
 export const internalLogin = (payload: { username: string; password: string }) =>
@@ -22,6 +24,27 @@ export const internalLogin = (payload: { username: string; password: string }) =
 
 export const getInternalMe = () =>
   api.get<InternalUser>('/v1/internal/auth/me').then((r) => r.data)
+
+export const listSubscriptionPlans = () =>
+  api.get<SubscriptionPlanOption[]>('/v1/internal/subscription-plans').then((r) => r.data)
+
+export const listManagedUsers = (params?: {
+  q?: string
+  role?: InternalUser['role']
+  subscriptionPlan?: 'free' | 'premium_monthly' | 'premium_annual'
+  isActive?: boolean
+  limit?: number
+  offset?: number
+}) => api.get<Paginated<AdminManagedUser>>('/v1/internal/users', { params }).then((r) => r.data)
+
+export const updateManagedUser = (
+  userId: string,
+  payload: Partial<{
+    role: InternalUser['role']
+    subscriptionPlan: 'free' | 'premium_monthly' | 'premium_annual'
+    isActive: boolean
+  }>,
+) => api.patch<AdminManagedUser>(`/v1/internal/users/${userId}`, payload).then((r) => r.data)
 
 // Register a brand-new account with a studio access token.
 export const studioRegister = (payload: {

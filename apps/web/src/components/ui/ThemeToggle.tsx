@@ -51,17 +51,17 @@ export default function ThemeToggle() {
   }, [open])
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative z-[70]">
       <button
         onClick={() => setOpen(o => !o)}
         title="Change theme"
-        className="p-2 rounded-full text-muted-fg hover:text-foreground hover:bg-surface transition-colors"
+        className="glass-pill p-2 text-muted-fg hover:text-foreground"
       >
         <Icon size={18} />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-1 w-48 bg-surface border border-border rounded-md shadow-md overflow-hidden z-50">
+        <div className="glass-panel-strong absolute right-0 z-[80] mt-2 w-52 overflow-hidden rounded-2xl">
 
           {/* Free themes */}
           {ALL_THEMES.filter(t => t !== 'paper').map(t => {
@@ -73,8 +73,8 @@ export default function ThemeToggle() {
                 onClick={() => { setTheme(t); setOpen(false) }}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors
                   ${active
-                    ? 'text-accent bg-accent/10 font-medium'
-                    : 'text-foreground hover:bg-border/40'
+                  ? 'text-accent bg-accent/10 font-medium'
+                  : 'text-foreground hover:bg-foreground/5'
                   }`}
               >
                 <TIcon size={14} className="shrink-0" />
@@ -94,7 +94,7 @@ export default function ThemeToggle() {
               ${isPremium && theme === 'paper'
                 ? 'text-accent bg-accent/10 font-medium'
                 : isPremium
-                  ? 'text-foreground hover:bg-border/40'
+                  ? 'text-foreground hover:bg-foreground/5'
                   : 'opacity-60 cursor-not-allowed'
               }`}
           >

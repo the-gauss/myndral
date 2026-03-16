@@ -5,12 +5,14 @@ import { getMe } from './services/auth'
 import { useUserStore } from './store/userStore'
 import Album from './pages/Album'
 import Albums from './pages/Albums'
+import Account from './pages/Account'
 import Artist from './pages/Artist'
 import Artists from './pages/Artists'
 import ChoosePlan from './pages/ChoosePlan'
 import Home from './pages/Home'
 import Library from './pages/Library'
 import Login from './pages/Login'
+import New from './pages/New'
 import Playlist from './pages/Playlist'
 import Playlists from './pages/Playlists'
 import Register from './pages/Register'
@@ -84,6 +86,8 @@ export default function App() {
           <Route path="/choose-plan"   element={<Navigate to="/" replace />} />
           <Route path="/"              element={<Home />} />
           <Route path="/search"        element={<Search />} />
+          <Route path="/new"           element={<New />} />
+          <Route path="/account"       element={<Account />} />
           <Route path="/artists"       element={<Artists />} />
           <Route path="/albums"        element={<Albums />} />
           <Route path="/songs"         element={<Songs />} />

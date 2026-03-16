@@ -49,9 +49,15 @@ export interface Playlist {
   description?: string
   coverUrl?: string
   ownerId: string
+  ownerDisplayName?: string
   isPublic: boolean
   isAiCurated: boolean
   tracks: Track[]
+  trackCount?: number
+  followerCount?: number
+  totalDurationMs?: number
+  canEdit?: boolean
+  isInLibrary?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -113,4 +119,18 @@ export interface SearchResults {
   albums: Paginated<Album>
   artists: Paginated<Artist>
   playlists: Paginated<Playlist>
+}
+
+export interface CollectionState {
+  library: {
+    trackIds: string[]
+    albumIds: string[]
+    artistIds: string[]
+    playlistIds: string[]
+  }
+  favorites: {
+    trackIds: string[]
+    albumIds: string[]
+    artistIds: string[]
+  }
 }

@@ -51,15 +51,15 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4">
-      <div className="absolute top-4 right-4">
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center overflow-hidden px-4">
+      <div className="absolute top-6 right-6 z-10">
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-md rounded-2xl border border-border bg-surface/80 p-8 shadow-xl">
+      <div className="glass-panel-strong soft-enter w-full max-w-md rounded-[32px] p-8 shadow-xl">
         <div className="mb-8">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-fg">MyndralAI</p>
-          <h1 className="mt-2 text-2xl font-bold">Create your account</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight">Create your account</h1>
           <p className="mt-1 text-sm text-muted-fg">
             AI-generated music, no real artists — just pure sound.
           </p>
@@ -82,7 +82,7 @@ export default function Register() {
                 maxLength={50}
                 pattern="^[a-zA-Z0-9_]+$"
                 title="Letters, numbers, and underscores only"
-                className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none ring-accent/60 transition focus:ring-2"
+                className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm"
               />
             </div>
           </label>
@@ -99,7 +99,7 @@ export default function Register() {
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
                 required
-                className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none ring-accent/60 transition focus:ring-2"
+                className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm"
               />
             </div>
           </label>
@@ -117,7 +117,7 @@ export default function Register() {
                 autoComplete="new-password"
                 required
                 minLength={8}
-                className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none ring-accent/60 transition focus:ring-2"
+                className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm"
               />
             </div>
           </label>
@@ -135,13 +135,13 @@ export default function Register() {
                 autoComplete="new-password"
                 required
                 minLength={8}
-                className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none ring-accent/60 transition focus:ring-2"
+                className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm"
               />
             </div>
           </label>
 
           {error && (
-            <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+            <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </p>
           )}
@@ -149,7 +149,7 @@ export default function Register() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-2xl bg-accent px-4 py-3 text-sm font-semibold text-accent-fg shadow-lg shadow-accent/20 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? 'Creating account...' : 'Create account'}
           </button>

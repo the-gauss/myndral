@@ -4,12 +4,14 @@ import TrackRow from '../components/cards/TrackRow'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
 import { usePlaylist } from '../hooks/useCatalog'
+import { resolveMediaUrl } from '../lib/media'
 import { usePlayerStore } from '../store/playerStore'
 
 export default function Playlist() {
   const { id } = useParams<{ id: string }>()
   const { data: playlist, isLoading } = usePlaylist(id!)
   const play = usePlayerStore((s) => s.play)
+  const coverUrl = resolveMediaUrl(playlist?.coverUrl)
 
   function playPlaylist() {
     if (playlist?.tracks.length) play(playlist.tracks[0], playlist.tracks)
@@ -22,8 +24,8 @@ export default function Playlist() {
         <div className="w-44 h-44 rounded bg-border shadow-lg shrink-0 overflow-hidden">
           {isLoading
             ? <Skeleton className="w-full h-full rounded" />
-            : playlist?.coverUrl
-              ? <img src={playlist.coverUrl} alt={playlist.name} className="w-full h-full object-cover" />
+            : coverUrl
+              ? <img src={coverUrl} alt={playlist?.name ?? 'Playlist cover'} className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center">
                   <Music size={32} className="text-muted-fg" />
                 </div>

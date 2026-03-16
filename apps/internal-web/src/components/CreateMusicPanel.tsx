@@ -50,11 +50,6 @@ const ACCEPTED_AUDIO = '.mp3,.m4a,.wav,.flac,.ogg,.opus,.aac,audio/*'
 
 // ── Utility helpers ────────────────────────────────────────────────────────────
 
-function parseOptionalNumber(raw: string): number | undefined {
-  const value = Number(raw)
-  return Number.isFinite(value) ? value : undefined
-}
-
 function parseOptionalInt(raw: string): number | undefined {
   const parsed = Number.parseInt(raw, 10)
   return Number.isFinite(parsed) ? parsed : undefined

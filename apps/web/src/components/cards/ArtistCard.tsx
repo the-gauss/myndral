@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { resolveMediaUrl } from '../../lib/media'
 import type { Artist } from '../../types'
 import Skeleton from '../ui/Skeleton'
 
@@ -17,12 +18,14 @@ export function ArtistCardSkeleton() {
 }
 
 export default function ArtistCard({ artist }: Props) {
+  const imageUrl = resolveMediaUrl(artist.imageUrl)
+
   return (
     <div className="flex flex-col items-center gap-3 p-3 rounded-lg bg-surface hover:bg-border/40 transition-colors text-center">
       <div className="aspect-square w-full rounded-full overflow-hidden bg-border">
-        {artist.imageUrl ? (
+        {imageUrl ? (
           <img
-            src={artist.imageUrl}
+            src={imageUrl}
             alt={artist.name}
             className="w-full h-full object-cover"
             loading="lazy"

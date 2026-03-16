@@ -13,6 +13,7 @@ import {
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { usePlayer } from '../../hooks/usePlayer'
+import { resolveMediaUrl } from '../../lib/media'
 
 function fmt(ms: number) {
   const s = Math.floor(ms / 1000)
@@ -37,19 +38,19 @@ export default function Player() {
   } = usePlayer()
 
   const audioRef = useRef<HTMLAudioElement>(null)
-  const apiBaseUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
   // Sync playback state with audio element
   useEffect(() => {
     const audio = audioRef.current
     if (!audio || !currentTrack?.audioUrl) return
-    const resolvedUrl = currentTrack.audioUrl.startsWith('/v1/') && apiBaseUrl
-      ? `${apiBaseUrl}${currentTrack.audioUrl}`
-      : currentTrack.audioUrl
+    const resolvedUrl = resolveMediaUrl(currentTrack.audioUrl)
+    if (!resolvedUrl) return
     audio.src = resolvedUrl
     audio.load()
     if (isPlaying) audio.play().catch(() => {})
-  }, [apiBaseUrl, currentTrack?.id, currentTrack?.audioUrl, isPlaying])
+  }, [currentTrack?.id, currentTrack?.audioUrl, isPlaying])
+
+  const coverUrl = resolveMediaUrl(currentTrack?.album.coverUrl)
 
   useEffect(() => {
     const audio = audioRef.current
@@ -101,9 +102,9 @@ export default function Player() {
           {currentTrack ? (
             <>
               <div className="w-12 h-12 rounded bg-border shrink-0 overflow-hidden">
-                {currentTrack.album.coverUrl && (
+                {coverUrl && (
                   <img
-                    src={currentTrack.album.coverUrl}
+                    src={coverUrl}
                     alt={currentTrack.album.title}
                     className="w-full h-full object-cover"
                   />

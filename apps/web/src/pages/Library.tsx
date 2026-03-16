@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
 import { useUserPlaylists } from '../hooks/useCatalog'
+import { resolveMediaUrl } from '../lib/media'
 
 export default function Library() {
   const { data, isLoading } = useUserPlaylists()
@@ -27,30 +28,34 @@ export default function Library() {
 
       {!isLoading && data && data.items.length > 0 && (
         <ul className="space-y-1">
-          {data.items.map((pl) => (
-            <li key={pl.id}>
-              <Link
-                to={`/playlist/${pl.id}`}
-                className="flex items-center gap-4 px-3 py-2 rounded-lg hover:bg-surface transition-colors"
-              >
-                <div className="w-12 h-12 rounded bg-border shrink-0 overflow-hidden">
-                  {pl.coverUrl
-                    ? <img src={pl.coverUrl} alt={pl.name} className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center">
-                        <Music size={18} className="text-muted-fg" />
-                      </div>
-                  }
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{pl.name}</p>
-                  <p className="text-xs text-muted-fg">
-                    {pl.isAiCurated ? 'AI Curated · ' : ''}
-                    {pl.tracks.length} {pl.tracks.length === 1 ? 'song' : 'songs'}
-                  </p>
-                </div>
-              </Link>
-            </li>
-          ))}
+          {data.items.map((pl) => {
+            const coverUrl = resolveMediaUrl(pl.coverUrl)
+
+            return (
+              <li key={pl.id}>
+                <Link
+                  to={`/playlist/${pl.id}`}
+                  className="flex items-center gap-4 px-3 py-2 rounded-lg hover:bg-surface transition-colors"
+                >
+                  <div className="w-12 h-12 rounded bg-border shrink-0 overflow-hidden">
+                    {coverUrl
+                      ? <img src={coverUrl} alt={pl.name} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center">
+                          <Music size={18} className="text-muted-fg" />
+                        </div>
+                    }
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{pl.name}</p>
+                    <p className="text-xs text-muted-fg">
+                      {pl.isAiCurated ? 'AI Curated · ' : ''}
+                      {pl.tracks.length} {pl.tracks.length === 1 ? 'song' : 'songs'}
+                    </p>
+                  </div>
+                </Link>
+              </li>
+            )
+          })}
         </ul>
       )}
 

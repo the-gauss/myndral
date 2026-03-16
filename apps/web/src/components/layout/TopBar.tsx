@@ -1,12 +1,27 @@
-import { ChevronLeft, ChevronRight, LogOut, User } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, LogOut, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { buildStudioAppUrl, userHasStudioAccess } from '../../lib/crossApp'
 import { useUserStore } from '../../store/userStore'
 import ThemeToggle from '../ui/ThemeToggle'
 
 export default function TopBar() {
   const navigate = useNavigate()
   const user = useUserStore((s) => s.user)
+  const accessToken = useUserStore((s) => s.accessToken)
   const clearUser = useUserStore((s) => s.clearUser)
+  const hasStudioAccess = userHasStudioAccess(user?.role)
+  const studioHref = hasStudioAccess
+    ? buildStudioAppUrl({ accessToken })
+    : buildStudioAppUrl({
+        view: 'register',
+        registerMode: 'existing',
+        identifier: user?.username,
+        clearSession: true,
+      })
+  const studioLabel = hasStudioAccess ? 'Studio' : 'Get Studio Access'
+  const studioTitle = hasStudioAccess
+    ? 'Open the internal studio'
+    : 'Open the studio access claim flow'
 
   function logout() {
     clearUser()
@@ -35,6 +50,14 @@ export default function TopBar() {
 
       {/* Right controls */}
       <div className="flex items-center gap-2">
+        <a
+          href={studioHref}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs font-semibold text-muted-fg transition-colors hover:text-foreground hover:bg-border/40"
+          title={studioTitle}
+        >
+          <ExternalLink size={14} />
+          {studioLabel}
+        </a>
         <ThemeToggle />
         <div className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full border border-border/70 bg-background/70">
           <User size={18} />

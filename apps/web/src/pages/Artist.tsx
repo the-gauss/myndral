@@ -5,6 +5,7 @@ import TrackRow from '../components/cards/TrackRow'
 import SectionHeader from '../components/ui/SectionHeader'
 import Skeleton from '../components/ui/Skeleton'
 import { useArtist, useArtistAlbums, useArtistTopTracks } from '../hooks/useCatalog'
+import { resolveMediaUrl } from '../lib/media'
 import { usePlayerStore } from '../store/playerStore'
 
 function fmtListeners(n: number) {
@@ -19,6 +20,7 @@ export default function Artist() {
   const { data: topTracks } = useArtistTopTracks(id!)
   const { data: albums, isLoading: albumsLoading } = useArtistAlbums(id!)
   const play = usePlayerStore((s) => s.play)
+  const heroImageUrl = resolveMediaUrl(artist?.imageUrl)
 
   function playArtist() {
     if (topTracks?.items.length) play(topTracks.items[0], topTracks.items)
@@ -29,7 +31,7 @@ export default function Artist() {
       {/* Hero */}
       <div
         className="relative h-64 flex items-end px-8 pb-6 bg-surface"
-        style={artist?.imageUrl ? { backgroundImage: `url(${artist.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+        style={heroImageUrl ? { backgroundImage: `url(${heroImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
       >
         {/* gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />

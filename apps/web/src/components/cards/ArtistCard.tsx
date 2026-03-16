@@ -9,7 +9,7 @@ interface Props {
 
 export function ArtistCardSkeleton() {
   return (
-    <div className="flex flex-col items-center gap-3 p-3 rounded-lg bg-surface">
+    <div className="glass-panel flex flex-col items-center gap-3 rounded-2xl p-3">
       <Skeleton className="aspect-square w-full rounded-full" />
       <Skeleton className="h-4 w-2/3" />
       <Skeleton className="h-3 w-1/3" />
@@ -21,8 +21,8 @@ export default function ArtistCard({ artist }: Props) {
   const imageUrl = resolveMediaUrl(artist.imageUrl)
 
   return (
-    <div className="flex flex-col items-center gap-3 p-3 rounded-lg bg-surface hover:bg-border/40 transition-colors text-center">
-      <div className="aspect-square w-full rounded-full overflow-hidden bg-border">
+    <div className="glass-panel surface-hover flex flex-col items-center gap-3 rounded-2xl p-3 text-center">
+      <div className="aspect-square w-full rounded-full overflow-hidden bg-border/70">
         {imageUrl ? (
           <img
             src={imageUrl}

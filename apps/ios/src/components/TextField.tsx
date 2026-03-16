@@ -32,7 +32,7 @@ export function TextField({
           fontSize: 12,
           fontWeight: '700',
           textTransform: 'uppercase',
-          letterSpacing: 0.7,
+          letterSpacing: 0.85,
         }}
       >
         {label}
@@ -47,14 +47,18 @@ export function TextField({
         autoCapitalize={autoCapitalize}
         autoCorrect={autoCorrect}
         style={{
-          minHeight: 52,
-          borderRadius: 18,
+          minHeight: 56,
+          borderRadius: 22,
           borderWidth: 1,
           borderColor: theme.colors.surfaceBorder,
-          backgroundColor: theme.colors.surfaceRaised,
+          backgroundColor: theme.colors.glassBgHeavy,
           color: theme.colors.text,
-          paddingHorizontal: 16,
+          paddingHorizontal: 18,
           fontSize: 16,
+          shadowColor: theme.isDark ? theme.colors.primary : theme.colors.secondary,
+          shadowOpacity: theme.isDark ? 0.08 : 0.05,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 6 },
           fontFamily: theme.typography.bodyFontFamily,
         }}
       />

@@ -76,30 +76,30 @@ export default function StudioRegister({
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center overflow-hidden p-6">
       <a
         href={webPlayerUrl}
-        className="absolute right-6 top-6 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-fg transition hover:text-foreground"
+        className="glass-pill absolute right-6 top-6 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold text-muted-fg transition hover:text-foreground"
       >
         <ExternalLink size={14} />
         Web Player
       </a>
-      <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 shadow-2xl shadow-black/30">
+      <div className="glass-panel-strong soft-enter w-full max-w-md rounded-[32px] p-8 shadow-2xl shadow-black/30">
         <p className="text-xs uppercase tracking-[0.22em] text-muted-fg">Myndral Studio</p>
-        <h1 className="text-3xl font-bold mt-2">Claim Studio Access</h1>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight">Claim Studio Access</h1>
         <p className="text-sm text-muted-fg mt-2">
           Paste the access token you received to activate your role.
         </p>
 
         {/* Mode tabs */}
-        <div className="mt-6 flex rounded-lg border border-border overflow-hidden text-sm font-medium">
+        <div className="glass-pill mt-6 flex overflow-hidden rounded-full p-1 text-sm font-medium">
           <button
             type="button"
             onClick={() => switchMode('new')}
             className={`flex-1 py-2 transition ${
               mode === 'new'
                 ? 'bg-accent text-accent-fg'
-                : 'bg-background text-muted-fg hover:text-foreground'
+                : 'text-muted-fg hover:text-foreground'
             }`}
           >
             New user
@@ -107,10 +107,10 @@ export default function StudioRegister({
           <button
             type="button"
             onClick={() => switchMode('existing')}
-            className={`flex-1 py-2 transition border-l border-border ${
+            className={`flex-1 py-2 transition ${
               mode === 'existing'
                 ? 'bg-accent text-accent-fg'
-                : 'bg-background text-muted-fg hover:text-foreground'
+                : 'text-muted-fg hover:text-foreground'
             }`}
           >
             Already have an account
@@ -135,7 +135,7 @@ export default function StudioRegister({
                 maxLength={50}
                 pattern={mode === 'new' ? '^[a-zA-Z0-9_]+$' : undefined}
                 title={mode === 'new' ? 'Letters, numbers, and underscores only' : undefined}
-                className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none ring-accent/60 transition focus:ring-2"
+                className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm"
               />
             </div>
           </label>
@@ -154,7 +154,7 @@ export default function StudioRegister({
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
                   required
-                  className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none ring-accent/60 transition focus:ring-2"
+                  className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm"
                 />
               </div>
             </label>
@@ -174,7 +174,7 @@ export default function StudioRegister({
                 autoComplete={mode === 'new' ? 'new-password' : 'current-password'}
                 required
                 minLength={mode === 'new' ? 8 : 1}
-                className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none ring-accent/60 transition focus:ring-2"
+                className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm"
               />
             </div>
           </label>
@@ -194,7 +194,7 @@ export default function StudioRegister({
                   autoComplete="new-password"
                   required
                   minLength={8}
-                  className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none ring-accent/60 transition focus:ring-2"
+                  className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm"
                 />
               </div>
             </label>
@@ -214,13 +214,13 @@ export default function StudioRegister({
                 autoComplete="off"
                 required
                 placeholder="Paste the token you received"
-                className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm font-mono outline-none ring-accent/60 transition focus:ring-2"
+                className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm font-mono"
               />
             </div>
           </label>
 
           {error && (
-            <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </p>
           )}
@@ -228,7 +228,7 @@ export default function StudioRegister({
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg transition hover:opacity-95 disabled:opacity-60"
+            className="w-full rounded-2xl bg-accent px-4 py-3 text-sm font-semibold text-accent-fg shadow-lg shadow-accent/20 hover:-translate-y-0.5 disabled:opacity-60"
           >
             {submitting
               ? 'Processing...'

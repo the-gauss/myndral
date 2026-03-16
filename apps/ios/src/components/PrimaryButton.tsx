@@ -26,15 +26,20 @@ export function PrimaryButton({
       onPress={onPress}
       style={({ pressed }) => [
         {
-          minHeight: 52,
-          borderRadius: 18,
+          minHeight: 56,
+          borderRadius: 22,
           alignItems: 'center',
           justifyContent: 'center',
-          paddingHorizontal: 18,
+          paddingHorizontal: 20,
           backgroundColor,
           borderWidth: variant === 'secondary' ? 1 : 0,
           borderColor: theme.colors.surfaceBorder,
-          opacity: disabled ? 0.45 : pressed ? 0.88 : 1,
+          shadowColor: variant === 'primary' ? theme.colors.primary : theme.colors.secondary,
+          shadowOpacity: disabled ? 0 : variant === 'primary' ? 0.2 : 0.08,
+          shadowRadius: 18,
+          shadowOffset: { width: 0, height: 10 },
+          opacity: disabled ? 0.45 : 1,
+          transform: [{ scale: pressed ? 0.985 : 1 }, { translateY: pressed ? 0 : -1 }],
         },
         style,
       ]}
@@ -44,6 +49,7 @@ export function PrimaryButton({
           color: textColor,
           fontSize: 15,
           fontWeight: '700',
+          letterSpacing: 0.2,
           fontFamily: theme.typography.bodyFontFamily,
         }}
       >

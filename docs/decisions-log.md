@@ -5,6 +5,25 @@ Each entry follows STAR format (Situation → Task → Action → Result).
 
 ---
 
+## 2026-03-16 — Cross-Platform Glass Redesign: Shared Palette Translation Across Web, Studio, and iOS
+
+**Situation:** The repo had three user-facing surfaces with diverging presentation layers: the web player, the internal Studio app, and the new iOS client. A major redesign needed to land consistently across all of them, while keeping future brand-kit updates centralized in `shared/brand` instead of duplicated inside each app.
+
+**Task:** Re-theme Light and Dark mode around a new slate/steel/orange palette, introduce a more premium glass-and-vibrancy visual system, and keep Minkowski visually stable while making the redesign reusable across platforms.
+
+**Action:**
+1. **Palette moved through the shared brand source of truth** — updated `shared/brand/tokens.css` and `shared/brand/theme.ts` so Light and Dark now derive from the new palette directly at the token layer. Semantic RGB helpers were added so web Tailwind themes and native iOS theme generation can both consume the same shared values without app-specific color duplication.
+
+2. **Semantic remapping in each web client** — both `apps/web` and `apps/internal-web` now import the shared token file and map Tailwind semantic colors (`background`, `foreground`, `accent`, `danger`, etc.) from shared brand variables. This made it possible to redesign cards, navigation, overlays, and auth forms with token-driven classes rather than hardcoded palette values.
+
+3. **Reusable glass primitives instead of one-off styling** — introduced shared UI affordances such as glass panels, pills, and glass inputs in the web CSS layers, and strengthened the native `GlassSurface` primitive plus translucent tab bar treatment on iOS. The redesign therefore propagates by composing a small set of branded primitives rather than repainting every screen by hand.
+
+4. **Motion tuned as a system, not decoration** — slowed interaction timing curves and added soft entrance/ambient movement patterns so the redesign feels deliberate and premium without introducing flashy, high-frequency animation. Motion remains tied to surfaces, transitions, and hierarchy rather than ornamental effects.
+
+**Result:** The repo now has a unified first-pass redesign spanning the listener web player, Studio, and iOS, with Light/Dark palette changes flowing from `shared/brand` into all three clients. Future brand updates can primarily happen in the shared token layer, while platform-specific code focuses on layout and interaction patterns instead of duplicating visual constants.
+
+---
+
 ## 2026-03-16 — iOS Client First Draft: Shared Brand Sync + Web-Parity API Surface
 
 **Situation:** The repo had a production web client and API, but no iOS app. The new client needed to match the currently working web listener experience without changing existing backend or web code, and brand-sensitive presentation had to stay centralized in `shared/brand`.

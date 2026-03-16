@@ -9,20 +9,22 @@ interface Props {
 
 export default function MainLayout({ children }: Props) {
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground select-none">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-background/30 text-foreground select-none">
       {/* Sidebar + content area */}
-      <div className="flex flex-1 overflow-hidden gap-1.5 p-1.5">
+      <div className="relative z-10 flex flex-1 overflow-hidden gap-3 p-3">
         <Sidebar />
-        <div className="flex flex-col flex-1 rounded-lg bg-surface overflow-hidden">
+        <div className="glass-panel-strong soft-enter flex flex-col flex-1 overflow-hidden rounded-[32px]">
           <TopBar />
-          <main className="flex-1 overflow-y-auto px-8 py-6">
+          <main className="flex-1 overflow-y-auto px-8 py-8">
             {children}
           </main>
         </div>
       </div>
 
       {/* Bottom player bar */}
-      <Player />
+      <div className="relative z-10 px-3 pb-3">
+        <Player />
+      </div>
     </div>
   )
 }

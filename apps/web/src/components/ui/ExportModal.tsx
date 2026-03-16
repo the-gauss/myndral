@@ -53,8 +53,8 @@ export default function ExportModal({ target, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 p-4 backdrop-blur-sm">
+      <div className="glass-panel-strong w-full max-w-md rounded-[28px]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
@@ -63,7 +63,7 @@ export default function ExportModal({ target, onClose }: Props) {
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-muted-fg hover:bg-background hover:text-foreground"
+            className="glass-pill rounded-xl p-1.5 text-muted-fg hover:text-foreground"
             aria-label="Close"
           >
             <X size={16} />
@@ -104,13 +104,13 @@ export default function ExportModal({ target, onClose }: Props) {
               </ul>
 
               {mutation.error && (
-                <p className="text-sm text-red-400">
+                <p className="text-sm text-danger">
                   {asErrorMessage(mutation.error, 'Download failed. Please try again.')}
                 </p>
               )}
 
               {isSuccess ? (
-                <p className="text-sm text-green-400">
+                <p className="text-sm text-success">
                   {target.kind === 'track' ? 'Download started!' : 'All tracks downloading…'}
                 </p>
               ) : (
@@ -132,10 +132,10 @@ export default function ExportModal({ target, onClose }: Props) {
                 For content creation, commercial use, and copyright-free requirements.
               </p>
 
-              <div className="rounded-lg border border-border bg-background/60 p-4 space-y-2">
+              <div className="glass-panel rounded-2xl p-4 space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span>Per track</span>
-                  <span className="font-semibold">$0.99</span>
+                <span className="font-semibold">$0.99</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span>Per album</span>
@@ -143,9 +143,9 @@ export default function ExportModal({ target, onClose }: Props) {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-                <p className="text-sm font-medium text-amber-300">Coming Soon</p>
-                <p className="mt-0.5 text-xs text-amber-300/70">
+              <div className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3">
+                <p className="text-sm font-medium text-warning">Coming Soon</p>
+                <p className="mt-0.5 text-xs text-warning/80">
                   Business licensing is on the way. Check back soon.
                 </p>
               </div>

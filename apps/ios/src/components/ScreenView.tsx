@@ -31,25 +31,37 @@ function Atmosphere() {
       <View
         style={{
           position: 'absolute',
-          top: -110,
-          right: -60,
-          width: 240,
-          height: 240,
-          borderRadius: 120,
+          top: -120,
+          right: -70,
+          width: 270,
+          height: 270,
+          borderRadius: 135,
           backgroundColor: theme.colors.primary,
-          opacity: theme.isDark ? 0.16 : 0.12,
+          opacity: theme.isDark ? 0.18 : 0.14,
         }}
       />
       <View
         style={{
           position: 'absolute',
-          left: -70,
-          bottom: 120,
-          width: 220,
-          height: 220,
-          borderRadius: 110,
+          left: -90,
+          bottom: 104,
+          width: 250,
+          height: 250,
+          borderRadius: 125,
           backgroundColor: theme.colors.secondary,
-          opacity: theme.isDark ? 0.12 : 0.08,
+          opacity: theme.isDark ? 0.12 : 0.1,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          right: 36,
+          bottom: -70,
+          width: 180,
+          height: 180,
+          borderRadius: 90,
+          backgroundColor: theme.colors.backgroundOffset,
+          opacity: theme.isDark ? 0.42 : 0.6,
         }}
       />
     </View>

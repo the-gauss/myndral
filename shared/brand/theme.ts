@@ -22,12 +22,12 @@ export const THEMES: ThemeConfig[] = [
   {
     name: "light",
     label: "Light",
-    description: "Clean, glassy, luminous"
+    description: "Ice blue daylight with forged orange accents"
   },
   {
     name: "dark",
     label: "Dark",
-    description: "Deep dark with pink/blue palette"
+    description: "Midnight slate with cool steel and ember glow"
   },
   {
     name: "paper",

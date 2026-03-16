@@ -4,6 +4,8 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './index.css'
 
+document.documentElement.setAttribute('data-theme', 'dark')
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

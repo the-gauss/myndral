@@ -96,12 +96,12 @@ export default function Player() {
       {/* Hidden audio engine */}
       <audio ref={audioRef} preload="metadata" />
 
-      <footer className="h-[80px] flex items-center justify-between px-4 border-t border-border bg-background shrink-0 gap-4">
+      <footer className="glass-panel-strong h-[88px] flex items-center justify-between gap-4 rounded-[28px] px-5 shrink-0">
         {/* Left — track info */}
         <div className="flex items-center gap-3 w-[28%] min-w-0">
           {currentTrack ? (
             <>
-              <div className="w-12 h-12 rounded bg-border shrink-0 overflow-hidden">
+              <div className="w-12 h-12 rounded-2xl bg-border/70 shrink-0 overflow-hidden">
                 {coverUrl && (
                   <img
                     src={coverUrl}
@@ -124,7 +124,7 @@ export default function Player() {
                   {currentTrack.artist.name}
                 </Link>
               </div>
-              <button className="text-muted-fg hover:text-accent ml-1 shrink-0 transition-colors">
+              <button className="glass-pill ml-1 shrink-0 p-2 text-muted-fg hover:text-accent">
                 <Heart size={15} />
               </button>
             </>
@@ -150,7 +150,7 @@ export default function Player() {
 
             <button
               onClick={togglePlay}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-foreground text-background hover:scale-105 transition-transform"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-accent-fg shadow-lg shadow-accent/25 hover:scale-[1.03]"
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying
@@ -191,7 +191,7 @@ export default function Player() {
         {/* Right — volume */}
         <div className="flex items-center gap-2 w-[28%] justify-end">
           <button
-            className="text-muted-fg hover:text-foreground transition-colors"
+            className="glass-pill p-2 text-muted-fg hover:text-foreground"
             onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
             aria-label={volume === 0 ? 'Unmute' : 'Mute'}
           >

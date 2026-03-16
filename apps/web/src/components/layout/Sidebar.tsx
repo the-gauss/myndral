@@ -16,9 +16,9 @@ export default function Sidebar() {
   const { data: playlists } = useUserPlaylists()
 
   return (
-    <aside className="flex flex-col w-60 shrink-0 gap-1.5">
+    <aside className="flex w-64 shrink-0 flex-col gap-3">
       {/* Browse nav */}
-      <nav className="rounded-lg bg-background/60 px-3 py-4">
+      <nav className="glass-panel-vibrant soft-enter rounded-[28px] px-3 py-4">
         <p className="px-3 pb-2 text-xs font-semibold tracking-wide uppercase text-muted-fg">Browse</p>
         <ul className="space-y-0.5">
           {navItems.map(({ to, label, Icon }) => (
@@ -27,10 +27,10 @@ export default function Sidebar() {
                 to={to}
                 end={to === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors
+                   `surface-hover flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold
                    ${isActive
-                     ? 'text-foreground'
-                     : 'text-muted-fg hover:text-foreground'}`
+                     ? 'bg-accent/12 text-foreground shadow-sm'
+                     : 'text-muted-fg hover:bg-foreground/5 hover:text-foreground'}`
                 }
               >
                 <Icon size={22} />
@@ -42,7 +42,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Library */}
-      <div className="flex-1 rounded-lg bg-background/60 flex flex-col overflow-hidden">
+      <div className="glass-panel-vibrant soft-enter flex flex-1 flex-col overflow-hidden rounded-[28px]">
         <div className="px-4 pt-4 pb-2 flex items-center gap-2">
           <Library size={20} className="text-muted-fg" />
           <Link
@@ -64,11 +64,13 @@ export default function Sidebar() {
                     <NavLink
                       to={`/playlist/${pl.id}`}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2 rounded-md transition-colors
-                         ${isActive ? 'bg-surface text-foreground' : 'text-muted-fg hover:text-foreground'}`
+                        `surface-hover flex items-center gap-3 rounded-2xl px-3 py-2.5
+                         ${isActive
+                           ? 'bg-accent/10 text-foreground shadow-sm'
+                           : 'text-muted-fg hover:bg-foreground/5 hover:text-foreground'}`
                       }
                     >
-                      <div className="w-9 h-9 rounded bg-surface shrink-0 overflow-hidden">
+                      <div className="w-9 h-9 rounded-xl bg-surface/70 shrink-0 overflow-hidden">
                         {coverUrl
                           ? <img src={coverUrl} alt={pl.name} className="w-full h-full object-cover" />
                           : <div className="w-full h-full flex items-center justify-center"><Music size={14} className="text-muted-fg" /></div>

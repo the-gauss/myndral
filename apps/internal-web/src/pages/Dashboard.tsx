@@ -61,18 +61,18 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-foreground">
 
       {/* ── Top nav ─────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-border bg-surface/80 backdrop-blur">
+      <header className="glass-toolbar sticky top-0 z-40 mx-3 mt-3 rounded-[30px]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <span className="text-sm font-semibold tracking-tight">MyndralAI Studio</span>
 
-          <nav className="flex gap-1">
+          <nav className="glass-pill flex gap-1 rounded-full p-1">
             {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
               <button
                 key={t}
-                className={`rounded-md px-3 py-1.5 text-sm transition-colors
+                className={`rounded-full px-4 py-2 text-sm transition-colors
                   ${tab === t
-                    ? 'bg-accent text-accent-fg font-medium'
-                    : 'text-muted-fg hover:text-foreground hover:bg-surface'}`}
+                    ? 'bg-accent text-accent-fg font-medium shadow-lg shadow-accent/20'
+                    : 'text-muted-fg hover:bg-foreground/5 hover:text-foreground'}`}
                 onClick={() => handleTabChange(t)}
               >
                 {TAB_LABELS[t]}
@@ -83,7 +83,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <a
               href={webPlayerUrl}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-fg transition hover:bg-surface hover:text-foreground"
+              className="glass-pill inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold text-muted-fg transition hover:text-foreground"
             >
               <ExternalLink size={14} />
               Web Player
@@ -97,7 +97,7 @@ export default function Dashboard() {
                 </span>
               </span>
               <button
-                className="rounded-md border border-border px-3 py-1 text-xs hover:bg-surface"
+                className="glass-pill rounded-full px-3 py-1.5 text-xs hover:text-foreground"
                 onClick={clearSession}
               >
                 Sign out
@@ -108,7 +108,7 @@ export default function Dashboard() {
       </header>
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="studio-shell soft-enter mx-auto max-w-7xl px-4 pb-8 pt-6">
         {tab === 'artists'      && <CreateArtistPanel />}
         {tab === 'albums'       && <CreateAlbumPanel />}
         {tab === 'create_music' && <CreateMusicPanel />}

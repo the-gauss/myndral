@@ -44,15 +44,15 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4">
-      <div className="absolute top-4 right-4">
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center overflow-hidden px-4">
+      <div className="absolute top-6 right-6 z-10">
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-md rounded-2xl border border-border bg-surface/80 p-8 shadow-xl">
+      <div className="glass-panel-strong soft-enter w-full max-w-md rounded-[32px] p-8 shadow-xl">
         <div className="mb-8">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-fg">MyndralAI</p>
-          <h1 className="mt-2 text-2xl font-bold">Sign in to continue</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight">Sign in to continue</h1>
           <p className="mt-1 text-sm text-muted-fg">
             Use your username (or email) and password to access the app.
           </p>
@@ -71,7 +71,7 @@ export default function Login() {
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
                 required
-                className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none ring-accent/60 transition focus:ring-2"
+                className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm"
               />
             </div>
           </label>
@@ -88,13 +88,13 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 required
-                className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none ring-accent/60 transition focus:ring-2"
+                className="glass-input w-full rounded-2xl py-3 pl-10 pr-3 text-sm"
               />
             </div>
           </label>
 
           {error && (
-            <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+            <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </p>
           )}
@@ -102,7 +102,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-2xl bg-accent px-4 py-3 text-sm font-semibold text-accent-fg shadow-lg shadow-accent/20 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? 'Signing in...' : 'Sign in'}
           </button>

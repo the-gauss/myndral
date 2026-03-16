@@ -11,7 +11,7 @@ interface Props {
 
 export function AlbumCardSkeleton() {
   return (
-    <div className="flex flex-col gap-3 p-3 rounded-lg bg-surface">
+    <div className="glass-panel flex flex-col gap-3 rounded-2xl p-3">
       <Skeleton className="aspect-square w-full rounded" />
       <Skeleton className="h-4 w-3/4" />
       <Skeleton className="h-3 w-1/2" />
@@ -23,8 +23,8 @@ export default function AlbumCard({ album, onPlay }: Props) {
   const coverUrl = resolveMediaUrl(album.coverUrl)
 
   return (
-    <div className="group flex flex-col gap-3 p-3 rounded-lg bg-surface hover:bg-border/40 transition-colors">
-      <div className="relative aspect-square w-full overflow-hidden rounded">
+    <div className="glass-panel surface-hover group flex flex-col gap-3 rounded-2xl p-3">
+      <div className="relative aspect-square w-full overflow-hidden rounded-xl">
         {coverUrl ? (
           <img
             src={coverUrl}
@@ -40,9 +40,8 @@ export default function AlbumCard({ album, onPlay }: Props) {
         {onPlay && (
           <button
             onClick={onPlay}
-            className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-accent text-accent-fg
-                       flex items-center justify-center shadow-md opacity-0 translate-y-1
-                       group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200"
+            className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-accent text-accent-fg shadow-lg shadow-accent/20 opacity-0 translate-y-1
+                       group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500"
             aria-label={`Play ${album.title}`}
           >
             <Play size={16} fill="currentColor" />

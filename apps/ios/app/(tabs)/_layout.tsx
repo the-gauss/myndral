@@ -31,9 +31,13 @@ export default function TabLayout() {
           height: 64 + insets.bottom,
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 10),
-          backgroundColor: theme.colors.sidebarBg,
+          backgroundColor: theme.colors.glassBg,
           borderTopWidth: 1,
-          borderTopColor: theme.colors.surfaceBorder,
+          borderTopColor: theme.colors.glassBorder,
+          shadowColor: theme.isDark ? theme.colors.secondary : theme.colors.primary,
+          shadowOpacity: theme.isDark ? 0.12 : 0.06,
+          shadowRadius: 24,
+          shadowOffset: { width: 0, height: -10 },
         },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textSubtle,
@@ -71,10 +75,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="browse"
         options={{
-          title: 'Browse',
-          tabBarIcon: ({ color }) => (
-            <SymbolView name="square.grid.2x2.fill" tintColor={color} size={19} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen

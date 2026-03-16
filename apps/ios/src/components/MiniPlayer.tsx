@@ -31,16 +31,17 @@ export function MiniPlayer({ bottomOffset }: MiniPlayerProps) {
     >
       <Pressable onPress={() => router.push('/player')}>
         <GlassSurface
+          styleVariant="clear"
           style={{
             padding: 10,
             paddingRight: 14,
             flexDirection: 'row',
             alignItems: 'center',
             gap: 12,
-            shadowColor: theme.isDark ? '#000000' : theme.colors.text,
-            shadowOpacity: theme.isDark ? 0.24 : 0.12,
-            shadowRadius: 18,
-            shadowOffset: { width: 0, height: 12 },
+            shadowColor: theme.isDark ? theme.colors.secondary : theme.colors.primary,
+            shadowOpacity: theme.isDark ? 0.16 : 0.1,
+            shadowRadius: 22,
+            shadowOffset: { width: 0, height: 14 },
           }}
         >
           <RemoteArtwork uri={currentTrack.album.coverUrl} style={{ width: 48, height: 48 }} />

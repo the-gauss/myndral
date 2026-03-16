@@ -74,7 +74,7 @@ export default function ImageInput({
               className={`rounded px-2 py-0.5 text-xs capitalize transition-colors
                 ${mode === m
                   ? 'bg-accent text-accent-fg'
-                  : 'border border-border text-muted-fg hover:text-foreground hover:bg-surface'}
+                  : 'studio-outline-button text-muted-fg hover:text-foreground'}
                 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
               onClick={() => setMode(m)}
             >
@@ -125,7 +125,7 @@ export default function ImageInput({
 
       {/* ── Generate mode (placeholder) ─────────────────────────────── */}
       {mode === 'generate' && (
-        <div className="flex items-center gap-3 rounded-md border border-border bg-background/40 px-3 py-2">
+        <div className="studio-card-soft flex items-center gap-3 rounded-2xl px-3 py-2">
           <button
             type="button"
             disabled

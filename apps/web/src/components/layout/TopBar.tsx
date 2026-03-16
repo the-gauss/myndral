@@ -29,19 +29,19 @@ export default function TopBar() {
   }
 
   return (
-    <header className="flex items-center justify-between px-6 py-2.5 shrink-0 border-b border-border/40">
+    <header className="glass-toolbar mx-4 mt-4 flex shrink-0 items-center justify-between rounded-[28px] px-6 py-3">
       {/* History navigation */}
       <div className="flex items-center gap-1">
         <button
           onClick={() => navigate(-1)}
-          className="p-1.5 rounded-full text-muted-fg hover:text-foreground hover:bg-border/40 transition-colors"
+          className="glass-pill p-2 text-muted-fg hover:text-foreground"
           aria-label="Go back"
         >
           <ChevronLeft size={18} />
         </button>
         <button
           onClick={() => navigate(1)}
-          className="p-1.5 rounded-full text-muted-fg hover:text-foreground hover:bg-border/40 transition-colors"
+          className="glass-pill p-2 text-muted-fg hover:text-foreground"
           aria-label="Go forward"
         >
           <ChevronRight size={18} />
@@ -52,21 +52,21 @@ export default function TopBar() {
       <div className="flex items-center gap-2">
         <a
           href={studioHref}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs font-semibold text-muted-fg transition-colors hover:text-foreground hover:bg-border/40"
+          className="glass-pill inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold text-muted-fg hover:text-foreground"
           title={studioTitle}
         >
           <ExternalLink size={14} />
           {studioLabel}
         </a>
         <ThemeToggle />
-        <div className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full border border-border/70 bg-background/70">
+        <div className="glass-pill flex items-center gap-2 rounded-full py-1 pl-1 pr-2">
           <User size={18} />
           <span className="text-xs font-medium text-muted-fg max-w-32 truncate">
             {user?.displayName ?? user?.username ?? 'Account'}
           </span>
           <button
             onClick={logout}
-            className="p-1 rounded text-muted-fg hover:text-foreground hover:bg-border/40 transition-colors"
+            className="rounded p-1 text-muted-fg hover:bg-foreground/10 hover:text-foreground"
             aria-label="Log out"
             title="Log out"
           >

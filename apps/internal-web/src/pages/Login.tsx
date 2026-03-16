@@ -12,7 +12,11 @@ function loginError(error: unknown): string {
   return axiosError.response?.data?.detail ?? 'Unable to sign in. Check credentials and try again.'
 }
 
-export default function Login() {
+interface Props {
+  onRegister: () => void
+}
+
+export default function Login({ onRegister }: Props) {
   const setSession = useAuthStore((s) => s.setSession)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -93,6 +97,17 @@ export default function Login() {
             {submitting ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-muted-fg">
+          Have an access token?{' '}
+          <button
+            type="button"
+            onClick={onRegister}
+            className="font-medium text-accent hover:underline"
+          >
+            Activate studio access
+          </button>
+        </p>
       </div>
     </div>
   )

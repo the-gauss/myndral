@@ -5,7 +5,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '../services/internal'
-import type { Notification } from '../types'
+import type { EntityType, Notification } from '../types'
 
 function formatDate(value: string): string {
   const d = new Date(value)
@@ -13,10 +13,15 @@ function formatDate(value: string): string {
   return d.toLocaleString()
 }
 
+export interface StagingNavTarget {
+  entityType: EntityType
+  entityId: string
+}
+
 export default function NotificationsBell({
-  onNavigateToTrack,
+  onNavigateToStaging,
 }: {
-  onNavigateToTrack?: (trackId: string) => void
+  onNavigateToStaging?: (target: StagingNavTarget) => void
 }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -38,7 +43,6 @@ export default function NotificationsBell({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   })
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
@@ -56,8 +60,12 @@ export default function NotificationsBell({
     if (!notif.isRead) {
       markReadMutation.mutate(notif.id)
     }
-    if (notif.trackId && onNavigateToTrack) {
-      onNavigateToTrack(notif.trackId)
+    if (!onNavigateToStaging) return
+
+    // Navigate to staging for the relevant entity
+    const entityId = notif.trackId ?? notif.artistId ?? notif.albumId
+    if (entityId) {
+      onNavigateToStaging({ entityType: notif.entityType, entityId })
       setOpen(false)
     }
   }
@@ -69,7 +77,6 @@ export default function NotificationsBell({
         onClick={() => setOpen((v) => !v)}
         aria-label="Notifications"
       >
-        {/* Bell icon */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-5 w-5 text-foreground"
@@ -94,7 +101,6 @@ export default function NotificationsBell({
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-lg border border-border bg-surface shadow-xl">
-          {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-3 py-2">
             <span className="text-sm font-medium">
               Notifications
@@ -115,7 +121,6 @@ export default function NotificationsBell({
             )}
           </div>
 
-          {/* List */}
           <div className="max-h-80 overflow-y-auto">
             {notifs.isLoading && (
               <p className="px-3 py-4 text-center text-sm text-muted-fg">Loading…</p>
@@ -134,8 +139,8 @@ export default function NotificationsBell({
                     <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />
                   )}
                   <div className={!notif.isRead ? '' : 'pl-4'}>
-                    {notif.trackTitle && (
-                      <p className="text-xs font-medium text-foreground">{notif.trackTitle}</p>
+                    {notif.entityName && (
+                      <p className="text-xs font-medium text-foreground">{notif.entityName}</p>
                     )}
                     <p className="text-xs text-muted-fg">{notif.message}</p>
                     <p className="mt-0.5 text-[10px] text-muted-fg/60">{formatDate(notif.createdAt)}</p>

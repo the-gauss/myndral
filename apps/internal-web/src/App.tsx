@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
+import StudioRegister from './pages/StudioRegister'
 import { getInternalMe } from './services/internal'
 import { useAuthStore } from './store/authStore'
 
 const INTERNAL_ROLES = new Set(['content_editor', 'content_reviewer', 'admin'])
+
+type View = 'login' | 'register'
 
 export default function App() {
   const accessToken = useAuthStore((s) => s.accessToken)
@@ -13,6 +16,7 @@ export default function App() {
   const clearSession = useAuthStore((s) => s.clearSession)
 
   const [checked, setChecked] = useState(false)
+  const [view, setView] = useState<View>('login')
 
   useEffect(() => {
     let cancelled = false
@@ -50,5 +54,11 @@ export default function App() {
     )
   }
 
-  return isAuthenticated ? <Dashboard /> : <Login />
+  if (isAuthenticated) return <Dashboard />
+
+  if (view === 'register') {
+    return <StudioRegister onBack={() => setView('login')} />
+  }
+
+  return <Login onRegister={() => setView('register')} />
 }

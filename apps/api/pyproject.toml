@@ -9,7 +9,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     # Config / validation
-    "pydantic>=2.10.0",
+    "pydantic[email]>=2.10.0",
     "pydantic-settings>=2.7.0",
     # Database
     "sqlalchemy[asyncio]>=2.0.0",
@@ -27,6 +27,8 @@ dependencies = [
     "mutagen>=1.47.0",
     # ElevenLabs music generation client
     "elevenlabs>=2.38.1",
+    # GCS client — only used in production (lazy-imported when gcs_bucket_name is set).
+    "google-cloud-storage>=2.18.0",
 ]
 
 [project.optional-dependencies]

@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from myndral_api.db.session import get_db
-from myndral_api.media_utils import normalize_audio_url
+from myndral_api.media_utils import normalize_audio_url, normalize_image_url
 
 router = APIRouter()
 
@@ -255,7 +255,7 @@ def _serialize_artist(row: Any) -> dict[str, Any]:
         "name": row["name"],
         "slug": row["slug"],
         "bio": row["bio"],
-        "imageUrl": row["image_url"],
+        "imageUrl": normalize_image_url(row["image_url"]),
         "monthlyListeners": int(row["monthly_listeners"] or 0),
         "verified": True,
         "styleTags": row["style_tags"] or [],
@@ -268,7 +268,7 @@ def _serialize_album(row: Any, artist: dict[str, Any]) -> dict[str, Any]:
         "title": row["title"],
         "artistId": row["artist_id"],
         "artist": artist,
-        "coverUrl": row["cover_url"],
+        "coverUrl": normalize_image_url(row["cover_url"]),
         "releaseDate": row["release_date"],
         "albumType": row["album_type"],
         "genreTags": row["genre_tags"] or [],
@@ -283,7 +283,7 @@ def _serialize_track(row: Any, artist: dict[str, Any]) -> dict[str, Any]:
         "title": row["album_title"],
         "artistId": row["artist_id"],
         "artist": artist,
-        "coverUrl": row["album_cover_url"],
+        "coverUrl": normalize_image_url(row["album_cover_url"]),
         "releaseDate": row["album_release_date"],
         "albumType": row["album_type"],
         "genreTags": row["album_genre_tags"] or [],

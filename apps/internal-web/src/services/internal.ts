@@ -10,7 +10,7 @@ import type {
   Notification,
   NotificationList,
   Paginated,
-  StagingTrack,
+  StagingQueue,
   TrackItem,
   ContentStatus,
   AlbumType,
@@ -23,11 +23,39 @@ export const internalLogin = (payload: { username: string; password: string }) =
 export const getInternalMe = () =>
   api.get<InternalUser>('/v1/internal/auth/me').then((r) => r.data)
 
+// Register a brand-new account with a studio access token.
+export const studioRegister = (payload: {
+  username: string
+  email: string
+  password: string
+  studio_access_token: string
+}) => api.post<LoginResponse>('/v1/auth/studio-register', payload).then((r) => r.data)
+
+// Upgrade an existing listener account using a studio access token.
+export const studioClaim = (payload: {
+  username: string
+  password: string
+  studio_access_token: string
+}) => api.post<LoginResponse>('/v1/auth/studio-claim', payload).then((r) => r.data)
+
 export const listGenres = () =>
   api.get<Genre[]>('/v1/internal/genres').then((r) => r.data)
 
+export const uploadImage = (file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  // Axios 1.x JSON-stringifies FormData when the instance default Content-Type is
+  // 'application/json'. Clearing it per-request lets the browser set the correct
+  // 'multipart/form-data; boundary=...' header automatically.
+  return api.post<{ storageUrl: string }>('/v1/internal/images/upload', form, {
+    headers: { 'Content-Type': null },
+  }).then((r) => r.data)
+}
+
 export const inspectAudio = (payload: { storageUrl: string }) =>
   api.post<AudioInspection>('/v1/internal/audio/inspect', payload).then((r) => r.data)
+
+// ── Artists ───────────────────────────────────────────────────────────────────
 
 export const listArtists = (params?: { status?: ContentStatus; q?: string; limit?: number; offset?: number }) =>
   api.get<Paginated<ArtistItem>>('/v1/internal/artists', { params }).then((r) => r.data)
@@ -38,7 +66,6 @@ export const createArtist = (payload: {
   bio?: string
   imageUrl?: string
   headerImageUrl?: string
-  status: ContentStatus
   personaPrompt?: string
   styleTags: string[]
   genreIds: string[]
@@ -50,11 +77,12 @@ export const updateArtist = (artistId: string, payload: Partial<{
   bio: string
   imageUrl: string
   headerImageUrl: string
-  status: ContentStatus
   personaPrompt: string
   styleTags: string[]
   genreIds: string[]
 }>) => api.patch<ArtistItem>(`/v1/internal/artists/${artistId}`, payload).then((r) => r.data)
+
+// ── Albums ────────────────────────────────────────────────────────────────────
 
 export const listAlbums = (params?: {
   status?: ContentStatus
@@ -72,7 +100,6 @@ export const createAlbum = (payload: {
   description?: string
   releaseDate?: string
   albumType: AlbumType
-  status: ContentStatus
   genreIds: string[]
 }) => api.post<AlbumItem>('/v1/internal/albums', payload).then((r) => r.data)
 
@@ -84,9 +111,10 @@ export const updateAlbum = (albumId: string, payload: Partial<{
   description: string
   releaseDate: string
   albumType: AlbumType
-  status: ContentStatus
   genreIds: string[]
 }>) => api.patch<AlbumItem>(`/v1/internal/albums/${albumId}`, payload).then((r) => r.data)
+
+// ── Tracks ────────────────────────────────────────────────────────────────────
 
 export const listTracks = (params?: {
   status?: ContentStatus
@@ -105,7 +133,6 @@ export const createTrack = (payload: {
   discNumber: number
   durationMs: number
   explicit: boolean
-  status: ContentStatus
   genreIds: string[]
   audioFiles: Array<{
     quality: 'low_128' | 'standard_256' | 'high_320' | 'lossless'
@@ -128,7 +155,6 @@ export const updateTrack = (trackId: string, payload: Partial<{
   discNumber: number
   durationMs: number
   explicit: boolean
-  status: ContentStatus
   genreIds: string[]
   audioFiles: Array<{
     quality: 'low_128' | 'standard_256' | 'high_320' | 'lossless'
@@ -144,8 +170,52 @@ export const updateTrack = (trackId: string, payload: Partial<{
   replaceAudioFiles: boolean
 }>) => api.patch<TrackItem>(`/v1/internal/tracks/${trackId}`, payload).then((r) => r.data)
 
+// ── Music generation ──────────────────────────────────────────────────────────
+
 export const generateMusic = (payload: MusicGenerateRequest) =>
   api.post<MusicGenerationJob>('/v1/internal/music/generate', payload).then((r) => r.data)
+
+export interface UploadMusicPayload {
+  file: File
+  artistId: string
+  albumId: string
+  trackTitle: string
+  explicit: boolean
+  lyrics?: string
+}
+
+export const uploadCustomMusic = ({ file, artistId, albumId, trackTitle, explicit, lyrics }: UploadMusicPayload) => {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('artist_id', artistId)
+  form.append('album_id', albumId)
+  form.append('track_title', trackTitle)
+  form.append('explicit', String(explicit))
+  if (lyrics?.trim()) form.append('lyrics', lyrics.trim())
+  // Same reason as uploadImage: clear JSON Content-Type so FormData is sent as multipart.
+  return api.post<MusicGenerationJob>('/v1/internal/music/upload', form, {
+    headers: { 'Content-Type': null },
+  }).then((r) => r.data)
+}
+
+export interface LinkExternalUrlPayload {
+  storageUrl: string
+  artistId: string
+  albumId: string
+  trackTitle: string
+  explicit: boolean
+  lyrics?: string
+}
+
+export const linkExternalUrl = ({ storageUrl, artistId, albumId, trackTitle, explicit, lyrics }: LinkExternalUrlPayload) =>
+  api.post<MusicGenerationJob>('/v1/internal/music/link', {
+    storage_url: storageUrl,
+    artist_id: artistId,
+    album_id: albumId,
+    track_title: trackTitle,
+    explicit,
+    lyrics: lyrics?.trim() || undefined,
+  }).then((r) => r.data)
 
 export const listMusicJobs = (params?: { limit?: number; offset?: number }) =>
   api.get<Paginated<MusicGenerationJob>>('/v1/internal/music/jobs', { params }).then((r) => r.data)
@@ -158,17 +228,62 @@ export const fetchGeneratedMusicFile = (storageUrl: string) =>
 
 // ── Staging ───────────────────────────────────────────────────────────────────
 
-export const listStaging = (params?: { limit?: number; offset?: number }) =>
-  api.get<Paginated<StagingTrack>>('/v1/internal/staging', { params }).then((r) => r.data)
+export const listStaging = () =>
+  api.get<StagingQueue>('/v1/internal/staging').then((r) => r.data)
 
+// Artists
+export const approveStagingArtist = (artistId: string) =>
+  api.post<{ artistId: string; action: string }>(`/v1/internal/staging/artists/${artistId}/approve`).then((r) => r.data)
+
+export const rejectStagingArtist = (artistId: string, notes: string) =>
+  api.post<{ artistId: string; action: string }>(`/v1/internal/staging/artists/${artistId}/reject`, { notes }).then((r) => r.data)
+
+export const sendArtistForReview = (artistId: string, notes: string) =>
+  api.post<{ artistId: string; action: string }>(`/v1/internal/staging/artists/${artistId}/review`, { notes }).then((r) => r.data)
+
+// Albums
+export const approveStagingAlbum = (albumId: string) =>
+  api.post<{ albumId: string; action: string }>(`/v1/internal/staging/albums/${albumId}/approve`).then((r) => r.data)
+
+export const rejectStagingAlbum = (albumId: string, notes: string) =>
+  api.post<{ albumId: string; action: string }>(`/v1/internal/staging/albums/${albumId}/reject`, { notes }).then((r) => r.data)
+
+export const sendAlbumForReview = (albumId: string, notes: string) =>
+  api.post<{ albumId: string; action: string }>(`/v1/internal/staging/albums/${albumId}/review`, { notes }).then((r) => r.data)
+
+// Tracks
 export const approveTrack = (trackId: string) =>
   api.post<{ trackId: string; action: string }>(`/v1/internal/staging/${trackId}/approve`).then((r) => r.data)
 
-export const rejectTrack = (trackId: string) =>
-  api.post<{ trackId: string; action: string }>(`/v1/internal/staging/${trackId}/reject`).then((r) => r.data)
+export const rejectTrack = (trackId: string, notes: string) =>
+  api.post<{ trackId: string; action: string }>(`/v1/internal/staging/${trackId}/reject`, { notes }).then((r) => r.data)
 
 export const sendTrackForReview = (trackId: string, notes: string) =>
   api.post<{ trackId: string; action: string }>(`/v1/internal/staging/${trackId}/review`, { notes }).then((r) => r.data)
+
+// Revoke (published → review, admin only)
+export const revokeArtist = (artistId: string, notes?: string) =>
+  api.post<{ artistId: string; action: string }>(`/v1/internal/staging/artists/${artistId}/revoke`, { notes: notes || undefined }).then((r) => r.data)
+
+export const revokeAlbum = (albumId: string, notes?: string) =>
+  api.post<{ albumId: string; action: string }>(`/v1/internal/staging/albums/${albumId}/revoke`, { notes: notes || undefined }).then((r) => r.data)
+
+export const revokeTrack = (trackId: string, notes?: string) =>
+  api.post<{ trackId: string; action: string }>(`/v1/internal/staging/${trackId}/revoke`, { notes: notes || undefined }).then((r) => r.data)
+
+// ── Archive ───────────────────────────────────────────────────────────────────
+
+export const listArchive = () =>
+  api.get<StagingQueue>('/v1/internal/archive').then((r) => r.data)
+
+export const restoreArtistFromArchive = (artistId: string) =>
+  api.post<{ artistId: string; action: string }>(`/v1/internal/archive/artists/${artistId}/restore`).then((r) => r.data)
+
+export const restoreAlbumFromArchive = (albumId: string) =>
+  api.post<{ albumId: string; action: string }>(`/v1/internal/archive/albums/${albumId}/restore`).then((r) => r.data)
+
+export const restoreTrackFromArchive = (trackId: string) =>
+  api.post<{ trackId: string; action: string }>(`/v1/internal/archive/tracks/${trackId}/restore`).then((r) => r.data)
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 

@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 from elevenlabs.client import AsyncElevenLabs
+from elevenlabs.core.api_error import ApiError as ElevenLabsApiError
 from elevenlabs.types import MusicPrompt, SongSection
 
 from myndral_api.media_utils import (
@@ -412,6 +413,7 @@ async def generate_song_file(
     output_subdir: str = DEFAULT_OUTPUT_SUBDIR,
     filename_hint: str | None = None,
     seed: int | None = None,
+    gcs_bucket: str | None = None,
 ) -> GeneratedMusicFile:
     if not api_key.strip():
         raise MusicGenerationError("ELEVENLABS_API_KEY is not configured.")
@@ -448,6 +450,15 @@ async def generate_song_file(
                 force_instrumental=force_instrumental if prompt else None,
                 with_timestamps=with_timestamps,
             )
+        except ElevenLabsApiError as exc:
+            if exc.status_code == 402:
+                raise MusicGenerationError(
+                    "ElevenLabs Music API requires a paid plan. "
+                    "Upgrade your ElevenLabs account to enable music generation via the API."
+                ) from exc
+            raise MusicGenerationError(
+                f"ElevenLabs returned an error (HTTP {exc.status_code}): {exc.body}"
+            ) from exc
         except Exception as exc:
             raise MusicGenerationError(f"ElevenLabs request failed: {exc}") from exc
 
@@ -457,8 +468,25 @@ async def generate_song_file(
     output_path = _next_output_path(output_dir, filename_hint or response.filename, output_format)
     output_path.write_bytes(response.audio)
 
-    storage_url = f"data/{output_path.relative_to(DATA_DIR).as_posix()}"
-    inferred = infer_local_audio_metadata(storage_url) or {}
+    # Always infer metadata from the local file before any GCS upload.
+    local_storage_url = f"data/{output_path.relative_to(DATA_DIR).as_posix()}"
+    inferred = infer_local_audio_metadata(local_storage_url) or {}
+
+    if gcs_bucket:
+        # Production: mirror the generated file to GCS.  The local copy is
+        # retained as a dev fallback and for the Cloud Run ephemeral filesystem
+        # (gone on next container restart, but that's acceptable).
+        from myndral_api.gcs_utils import upload_file_to_gcs  # lazy import
+
+        mime_type_for_upload = guess_media_type(output_path, fallback_format=guess_audio_format(output_path.name))
+        storage_url = upload_file_to_gcs(
+            gcs_bucket,
+            f"{output_subdir}/{output_path.name}",
+            output_path,
+            mime_type_for_upload,
+        )
+    else:
+        storage_url = local_storage_url
     response_json = response.json or {}
     composition_plan_json = (
         response_json.get("composition_plan")

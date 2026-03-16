@@ -1,7 +1,10 @@
-export type ContentStatus = 'draft' | 'review' | 'published' | 'archived'
+export type ContentStatus = 'review' | 'published' | 'archived'
 export type AlbumType = 'album' | 'single' | 'ep' | 'compilation'
 export type UserRole = 'listener' | 'content_editor' | 'content_reviewer' | 'admin'
 export type MusicGenerationStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled'
+export type StagingReviewAction = 'sent_for_review' | 'approved' | 'rejected'
+export type EntityType = 'artist' | 'album' | 'track'
+
 export type ElevenLabsOutputFormat =
   | 'mp3_22050_32'
   | 'mp3_24000_48'
@@ -186,7 +189,7 @@ export interface LoginResponse {
   user: InternalUser
 }
 
-export type StagingReviewAction = 'sent_for_review' | 'approved' | 'rejected'
+// ── Staging review audit entry ────────────────────────────────────────────────
 
 export interface StagingReview {
   action: StagingReviewAction
@@ -195,10 +198,44 @@ export interface StagingReview {
   createdAt: string | null
 }
 
-export interface StagingTrack {
+// ── Polymorphic staging items ─────────────────────────────────────────────────
+
+interface _StagingBase {
+  status: ContentStatus
+  createdById: string
+  createdByName: string
+  createdByRole: UserRole
+  createdAt: string
+  latestReview: StagingReview | null
+}
+
+export interface StagingArtist extends _StagingBase {
+  entityType: 'artist'
+  id: string
+  name: string
+  slug: string
+  imageUrl?: string | null
+  bio?: string | null
+  styleTags: string[]
+}
+
+export interface StagingAlbum extends _StagingBase {
+  entityType: 'album'
   id: string
   title: string
-  status: ContentStatus
+  slug: string
+  artistId: string
+  artistName: string
+  coverUrl?: string | null
+  albumType: AlbumType
+  releaseDate?: string | null
+  trackCount: number
+}
+
+export interface StagingTrack extends _StagingBase {
+  entityType: 'track'
+  id: string
+  title: string
   explicit: boolean
   durationMs: number | null
   albumId: string
@@ -206,18 +243,29 @@ export interface StagingTrack {
   albumType: AlbumType
   primaryArtistId: string
   primaryArtistName: string
-  createdById: string
-  createdByName: string
-  createdByRole: UserRole
   outputStorageUrl: string | null
-  createdAt: string
-  latestReview: StagingReview | null
 }
+
+export type StagingItem = StagingArtist | StagingAlbum | StagingTrack
+
+export interface StagingQueue {
+  artists: StagingArtist[]
+  albums: StagingAlbum[]
+  tracks: StagingTrack[]
+  totalArtists: number
+  totalAlbums: number
+  totalTracks: number
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
 
 export interface Notification {
   id: string
+  entityType: EntityType
   trackId: string | null
-  trackTitle: string | null
+  artistId: string | null
+  albumId: string | null
+  entityName: string | null
   message: string
   isRead: boolean
   createdAt: string

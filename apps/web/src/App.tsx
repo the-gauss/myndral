@@ -7,11 +7,13 @@ import Album from './pages/Album'
 import Albums from './pages/Albums'
 import Artist from './pages/Artist'
 import Artists from './pages/Artists'
+import ChoosePlan from './pages/ChoosePlan'
 import Home from './pages/Home'
 import Library from './pages/Library'
 import Login from './pages/Login'
 import Playlist from './pages/Playlist'
 import Playlists from './pages/Playlists'
+import Register from './pages/Register'
 import Search from './pages/Search'
 import Songs from './pages/Songs'
 
@@ -59,8 +61,15 @@ export default function App() {
     return (
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="/login"        element={<Login />} />
+          <Route path="/register"     element={<Register />} />
+          {/*
+            /choose-plan is reached immediately after registration.
+            It holds the auth payload in router state and only calls setUser
+            once the user picks a plan — keeping the session "pending" until then.
+          */}
+          <Route path="/choose-plan"  element={<ChoosePlan />} />
+          <Route path="*"             element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     )
@@ -71,6 +80,8 @@ export default function App() {
       <MainLayout>
         <Routes>
           <Route path="/login"         element={<Navigate to="/" replace />} />
+          <Route path="/register"      element={<Navigate to="/" replace />} />
+          <Route path="/choose-plan"   element={<Navigate to="/" replace />} />
           <Route path="/"              element={<Home />} />
           <Route path="/search"        element={<Search />} />
           <Route path="/artists"       element={<Artists />} />

@@ -56,6 +56,15 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("ELEVENLABS_OUTPUT_FORMAT"),
     )
 
+    # Storage — GCS bucket for images and audio in production.
+    # Empty string → use local data/ directory (dev default).
+    gcs_bucket_name: str = ""
+
+    # Studio access tokens — JSON object mapping token string → role name.
+    # Stored in Secret Manager (myndral-studio-tokens) and injected as an env
+    # var at runtime.  Empty object disables studio self-registration.
+    studio_access_tokens: str = "{}"
+
     # CORS — comma-separated origins
     cors_origins: str = (
         "http://localhost:5173,"

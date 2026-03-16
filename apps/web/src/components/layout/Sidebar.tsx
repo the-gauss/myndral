@@ -1,6 +1,6 @@
 import { Album, Home, Library, ListMusic, Mic2, Music, Search } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
-import { useUserPlaylists } from '../../hooks/useCatalog'
+import { useLibraryPlaylists } from '../../hooks/useCatalog'
 import { resolveMediaUrl } from '../../lib/media'
 
 const navItems = [
@@ -13,7 +13,7 @@ const navItems = [
 ]
 
 export default function Sidebar() {
-  const { data: playlists } = useUserPlaylists()
+  const { data: playlists } = useLibraryPlaylists()
 
   return (
     <aside className="flex w-64 shrink-0 flex-col gap-3">
@@ -88,7 +88,7 @@ export default function Sidebar() {
               })}
             </ul>
           ) : (
-            <p className="px-3 text-xs text-muted-fg">No playlists yet.</p>
+            <p className="px-3 text-xs text-muted-fg">No saved playlists yet.</p>
           )}
         </div>
       </div>

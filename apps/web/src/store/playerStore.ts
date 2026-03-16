@@ -17,6 +17,8 @@ interface PlayerStore {
   resume: () => void
   next: () => void
   prev: () => void
+  enqueue: (track: Track) => void
+  playNext: (track: Track) => void
   setQueue: (tracks: Track[]) => void
   setProgress: (progress: number) => void
   setVolume: (volume: number) => void
@@ -72,6 +74,28 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     const idx = queue.findIndex((t) => t.id === currentTrack?.id)
     const prevIdx = (idx - 1 + queue.length) % queue.length
     set({ currentTrack: queue[prevIdx], progress: 0, isPlaying: true })
+  },
+
+  enqueue: (track) => {
+    const { currentTrack, queue } = get()
+    if (!queue.length) {
+      set({ queue: currentTrack ? [currentTrack, track] : [track] })
+      return
+    }
+    set({ queue: [...queue, track] })
+  },
+
+  playNext: (track) => {
+    const { currentTrack, queue } = get()
+    if (!currentTrack) {
+      set({ currentTrack: track, queue: [track], isPlaying: true, progress: 0 })
+      return
+    }
+
+    const baseQueue = queue.length ? [...queue] : [currentTrack]
+    const currentIndex = Math.max(baseQueue.findIndex((item) => item.id === currentTrack.id), 0)
+    baseQueue.splice(currentIndex + 1, 0, track)
+    set({ queue: baseQueue })
   },
 
   setQueue: (tracks) => set({ queue: tracks }),

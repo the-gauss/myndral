@@ -1,7 +1,6 @@
 import { ScrollView, Text, View } from 'react-native';
 import { AlbumCard } from '@/src/components/AlbumCard';
 import { ArtistCard } from '@/src/components/ArtistCard';
-import { GlassSurface } from '@/src/components/GlassSurface';
 import { LoadingView } from '@/src/components/LoadingView';
 import { PlaylistListItem } from '@/src/components/PlaylistListItem';
 import { ScreenView } from '@/src/components/ScreenView';
@@ -9,9 +8,10 @@ import { SectionHeader } from '@/src/components/SectionHeader';
 import { TrackRow } from '@/src/components/TrackRow';
 import { greeting } from '@/src/lib/format';
 import {
-  useFeaturedTracks,
   useAlbums,
   useArtists,
+  useCollectionState,
+  useFeaturedTracks,
   usePlaylists,
   useTracks,
 } from '@/src/hooks/useCatalog';
@@ -26,21 +26,20 @@ export default function HomeScreen() {
   const featuredTracks = useFeaturedTracks(10);
   const browseTracks = useTracks(8);
   const playlists = usePlaylists(4);
+  const collection = useCollectionState({
+    trackIds: Array.from(
+      new Set([
+        ...(featuredTracks.data?.items.map((track) => track.id) ?? []),
+        ...(browseTracks.data?.items.map((track) => track.id) ?? []),
+      ]),
+    ),
+  });
+  const favoriteTrackIds = new Set(collection.data?.favorites.trackIds ?? []);
+  const libraryTrackIds = new Set(collection.data?.library.trackIds ?? []);
 
   return (
     <ScreenView>
-      <GlassSurface style={{ padding: 20, gap: 10 }}>
-        <Text
-          style={{
-            color: theme.colors.textSubtle,
-            fontSize: 12,
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: 0.7,
-            }}
-        >
-          Listener Home
-        </Text>
+      <View style={{ gap: 4 }}>
         <Text
           style={{
             color: theme.colors.text,
@@ -55,15 +54,13 @@ export default function HomeScreen() {
         <Text
           style={{
             color: theme.colors.textMuted,
-            fontSize: 15,
-            lineHeight: 22,
+            fontSize: 14,
             fontFamily: theme.typography.bodyFontFamily,
           }}
         >
-          Every artist, album, and lyric here is AI-born. No catalog filler, no copyright risk,
-          just an always-on synthetic music universe.
+          Fresh releases, browse picks, and saved listening cues in one place.
         </Text>
-      </GlassSurface>
+      </View>
 
       <View>
         <SectionHeader title="New Releases" />
@@ -100,46 +97,13 @@ export default function HomeScreen() {
                 index={index + 1}
                 queue={featuredTracks.data?.items}
                 showAlbum
+                isFavorite={favoriteTrackIds.has(track.id)}
+                isInLibrary={libraryTrackIds.has(track.id)}
               />
             ))}
           </View>
         )}
       </View>
-
-      <GlassSurface style={{ padding: 18, gap: 8 }}>
-        <Text
-          style={{
-            color: theme.colors.textSubtle,
-            fontSize: 12,
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: 0.7,
-          }}
-        >
-          Explore More
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.text,
-            fontSize: 24,
-            fontWeight: '800',
-            fontFamily: theme.typography.displayFontFamily,
-          }}
-        >
-          Browse now lives right here in Home.
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.textMuted,
-            fontSize: 14,
-            lineHeight: 21,
-            fontFamily: theme.typography.bodyFontFamily,
-          }}
-        >
-          Artists, albums, playlists, and songs from the full catalog are now woven into the
-          home feed instead of sitting behind a separate tab.
-        </Text>
-      </GlassSurface>
 
       <View>
         <SectionHeader title="Artists" />
@@ -176,6 +140,8 @@ export default function HomeScreen() {
                 index={index + 1}
                 queue={browseTracks.data?.items}
                 showAlbum
+                isFavorite={favoriteTrackIds.has(track.id)}
+                isInLibrary={libraryTrackIds.has(track.id)}
               />
             ))}
           </View>

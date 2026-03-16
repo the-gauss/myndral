@@ -66,6 +66,12 @@ export const useUserPlaylists = () =>
     queryFn: () => catalog.getUserPlaylists(),
   })
 
+export const useEditableUserPlaylists = () =>
+  useQuery({
+    queryKey: ['editable-user-playlists'],
+    queryFn: () => catalog.getEditableUserPlaylists(),
+  })
+
 export const usePlaylists = (limit = 20, offset = 0) =>
   useQuery({
     queryKey: ['playlists', limit, offset],
@@ -84,4 +90,57 @@ export const useSearch = (query: string, limit = 10) =>
     queryKey: ['search', query, limit],
     queryFn: () => catalog.search(query, limit),
     enabled: query.trim().length > 0,
+  })
+
+export const useCollectionState = (params: {
+  trackIds?: string[]
+  albumIds?: string[]
+  artistIds?: string[]
+  playlistIds?: string[]
+}) =>
+  useQuery({
+    queryKey: ['collection-state', params],
+    queryFn: () => catalog.getCollectionState(params),
+  })
+
+export const useLibraryTracks = () =>
+  useQuery({
+    queryKey: ['library-tracks'],
+    queryFn: () => catalog.getLibraryTracks(),
+  })
+
+export const useLibraryAlbums = () =>
+  useQuery({
+    queryKey: ['library-albums'],
+    queryFn: () => catalog.getLibraryAlbums(),
+  })
+
+export const useLibraryArtists = () =>
+  useQuery({
+    queryKey: ['library-artists'],
+    queryFn: () => catalog.getLibraryArtists(),
+  })
+
+export const useLibraryPlaylists = () =>
+  useQuery({
+    queryKey: ['library-playlists'],
+    queryFn: () => catalog.getLibraryPlaylists(),
+  })
+
+export const useFavoriteTracks = () =>
+  useQuery({
+    queryKey: ['favorite-tracks'],
+    queryFn: () => catalog.getFavoriteTracks(),
+  })
+
+export const useFavoriteAlbums = () =>
+  useQuery({
+    queryKey: ['favorite-albums'],
+    queryFn: () => catalog.getFavoriteAlbums(),
+  })
+
+export const useFavoriteArtists = () =>
+  useQuery({
+    queryKey: ['favorite-artists'],
+    queryFn: () => catalog.getFavoriteArtists(),
   })

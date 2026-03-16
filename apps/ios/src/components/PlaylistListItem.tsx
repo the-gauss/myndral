@@ -56,7 +56,7 @@ export function PlaylistListItem({ playlist }: PlaylistListItemProps) {
               fontFamily: theme.typography.bodyFontFamily,
             }}
           >
-            {playlist.tracks.length} {playlist.tracks.length === 1 ? 'song' : 'songs'}
+            {(playlist.trackCount ?? playlist.tracks.length)} {(playlist.trackCount ?? playlist.tracks.length) === 1 ? 'song' : 'songs'}
             {playlist.isAiCurated ? ' · AI Curated' : ''}
           </Text>
         </View>

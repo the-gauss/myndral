@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from myndral_api.auth_utils import get_current_user
 from myndral_api.db.session import get_db
 from myndral_api.media_utils import normalize_audio_url, normalize_image_url
 
@@ -226,13 +227,44 @@ LIMIT 1
 
 
 @router.put("/{track_id}/like", summary="Like a track")
-async def like_track(track_id: str) -> dict:
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented")
+async def like_track(
+    track_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    row = (
+        await db.execute(
+            text(TRACK_SELECT_BASE + "\nAND t.id = :track_id\nLIMIT 1\n"),
+            {"track_id": track_id},
+        )
+    ).mappings().first()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found")
+
+    await db.execute(
+        text(
+            """
+INSERT INTO user_liked_tracks (user_id, track_id)
+VALUES (:user_id, :track_id)
+ON CONFLICT (user_id, track_id) DO NOTHING
+"""
+        ),
+        {"user_id": current_user["id"], "track_id": track_id},
+    )
+    return {"trackId": track_id, "isFavorite": True}
 
 
 @router.delete("/{track_id}/like", summary="Unlike a track")
-async def unlike_track(track_id: str) -> dict:
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented")
+async def unlike_track(
+    track_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    await db.execute(
+        text("DELETE FROM user_liked_tracks WHERE user_id = :user_id AND track_id = :track_id"),
+        {"user_id": current_user["id"], "track_id": track_id},
+    )
+    return {"trackId": track_id, "isFavorite": False}
 
 
 @router.post("/{track_id}/play", summary="Record a play event")

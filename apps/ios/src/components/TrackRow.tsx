@@ -1,11 +1,20 @@
-import { useState } from 'react';
+import type { AxiosError } from 'axios';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
-import { useRouter } from 'expo-router';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ExportSheet } from '@/src/components/ExportSheet';
+import { PlaylistSheet } from '@/src/components/PlaylistSheet';
+import { TrackActionSheet } from '@/src/components/TrackActionSheet';
 import { formatDuration } from '@/src/lib/format';
 import { usePlayer } from '@/src/providers/PlayerProvider';
 import { useTheme } from '@/src/providers/ThemeProvider';
+import {
+  favoriteTrack,
+  removeTrackFromLibrary,
+  saveTrackToLibrary,
+  unfavoriteTrack,
+} from '@/src/services/catalog';
 import { useAuthStore } from '@/src/stores/authStore';
 import type { Track } from '@/src/types/domain';
 
@@ -14,17 +23,78 @@ interface TrackRowProps {
   index?: number;
   queue?: Track[];
   showAlbum?: boolean;
+  isFavorite?: boolean;
+  isInLibrary?: boolean;
 }
 
-export function TrackRow({ track, index, queue, showAlbum = false }: TrackRowProps) {
-  const router = useRouter();
+function asErrorMessage(error: unknown, fallback: string) {
+  const axiosError = error as AxiosError<{ detail?: unknown }>;
+  const detail = axiosError?.response?.data?.detail;
+  return typeof detail === 'string' && detail.trim() ? detail.trim() : fallback;
+}
+
+export function TrackRow({
+  track,
+  index,
+  queue,
+  showAlbum = false,
+  isFavorite = false,
+  isInLibrary = false,
+}: TrackRowProps) {
   const { theme } = useTheme();
-  const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlay, addToQueue, playNext } = usePlayer();
   const isPremium = useAuthStore((state) => state.isPremium);
   const isActive = currentTrack?.id === track.id;
+  const queryClient = useQueryClient();
+  const suppressTapRef = useRef(false);
+
   const [exportOpen, setExportOpen] = useState(false);
+  const [actionSheetOpen, setActionSheetOpen] = useState(false);
+  const [playlistSheetOpen, setPlaylistSheetOpen] = useState(false);
+  const [favorite, setFavorite] = useState(isFavorite);
+  const [inLibrary, setInLibrary] = useState(isInLibrary);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFavorite(isFavorite);
+  }, [isFavorite]);
+
+  useEffect(() => {
+    setInLibrary(isInLibrary);
+  }, [isInLibrary]);
+
+  const favoriteMutation = useMutation({
+    mutationFn: () => (favorite ? unfavoriteTrack(track.id) : favoriteTrack(track.id)),
+    onSuccess: () => {
+      setFavorite((current) => !current);
+      setActionError(null);
+      queryClient.invalidateQueries({ queryKey: ['collection-state'] });
+      queryClient.invalidateQueries({ queryKey: ['favorite-tracks'] });
+    },
+    onError: (error) => {
+      setActionError(asErrorMessage(error, 'Could not update favorites.'));
+    },
+  });
+
+  const libraryMutation = useMutation({
+    mutationFn: () => (inLibrary ? removeTrackFromLibrary(track.id) : saveTrackToLibrary(track.id)),
+    onSuccess: () => {
+      setInLibrary((current) => !current);
+      setActionError(null);
+      queryClient.invalidateQueries({ queryKey: ['collection-state'] });
+      queryClient.invalidateQueries({ queryKey: ['library-tracks'] });
+    },
+    onError: (error) => {
+      setActionError(asErrorMessage(error, 'Could not update the library.'));
+    },
+  });
 
   function handlePlay() {
+    if (suppressTapRef.current) {
+      suppressTapRef.current = false;
+      return;
+    }
+
     if (isActive) {
       togglePlay();
       return;
@@ -33,62 +103,69 @@ export function TrackRow({ track, index, queue, showAlbum = false }: TrackRowPro
     playTrack(track, queue);
   }
 
+  function openActions() {
+    suppressTapRef.current = true;
+    setActionSheetOpen(true);
+  }
+
   return (
     <>
-      <Pressable
-        onPress={handlePlay}
-        style={{
-          paddingVertical: 12,
-          paddingHorizontal: 14,
-          borderRadius: 22,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 12,
-          backgroundColor: isActive ? theme.colors.primaryDim : theme.colors.surfaceRaised,
-          borderWidth: 1,
-          borderColor: isActive ? theme.colors.primary : theme.colors.surfaceBorder,
-        }}
-      >
-        <View
+      <View style={{ gap: 6 }}>
+        <Pressable
+          onPress={handlePlay}
+          onLongPress={openActions}
+          delayLongPress={220}
           style={{
-            width: 28,
+            paddingVertical: 12,
+            paddingHorizontal: 14,
+            borderRadius: 22,
+            flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: 12,
+            backgroundColor: isActive ? theme.colors.primaryDim : theme.colors.surfaceRaised,
+            borderWidth: 1,
+            borderColor: isActive ? theme.colors.primary : theme.colors.surfaceBorder,
           }}
         >
-          {isActive ? (
-            <SymbolView
-              name={isPlaying ? 'pause.fill' : 'play.fill'}
-              size={14}
-              tintColor={theme.colors.primary}
-            />
-          ) : (
-            <Text
-              style={{
-                color: theme.colors.textSubtle,
-                fontSize: 13,
-                fontWeight: '600',
-              }}
-            >
-              {index ?? ''}
-            </Text>
-          )}
-        </View>
-
-        <View style={{ flex: 1, gap: 3 }}>
-          <Text
-            numberOfLines={1}
+          <View
             style={{
-              color: isActive ? theme.colors.primary : theme.colors.text,
-              fontSize: 15,
-              fontWeight: '700',
-              fontFamily: theme.typography.displayFontFamily,
+              width: 28,
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            {track.title}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Pressable onPress={() => router.push(`/artist/${track.artistId}`)}>
+            {isActive ? (
+              <SymbolView
+                name={isPlaying ? 'pause.fill' : 'play.fill'}
+                size={14}
+                tintColor={theme.colors.primary}
+              />
+            ) : (
+              <Text
+                style={{
+                  color: theme.colors.textSubtle,
+                  fontSize: 13,
+                  fontWeight: '600',
+                }}
+              >
+                {index ?? ''}
+              </Text>
+            )}
+          </View>
+
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text
+              numberOfLines={1}
+              style={{
+                color: isActive ? theme.colors.primary : theme.colors.text,
+                fontSize: 15,
+                fontWeight: '700',
+                fontFamily: theme.typography.displayFontFamily,
+              }}
+            >
+              {track.title}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <Text
                 numberOfLines={1}
                 style={{
@@ -99,9 +176,7 @@ export function TrackRow({ track, index, queue, showAlbum = false }: TrackRowPro
               >
                 {track.artist.name}
               </Text>
-            </Pressable>
-            {showAlbum ? (
-              <Pressable onPress={() => router.push(`/album/${track.albumId}`)}>
+              {showAlbum ? (
                 <Text
                   numberOfLines={1}
                   style={{
@@ -112,33 +187,90 @@ export function TrackRow({ track, index, queue, showAlbum = false }: TrackRowPro
                 >
                   · {track.album.title}
                 </Text>
-              </Pressable>
-            ) : null}
+              ) : null}
+            </View>
           </View>
-        </View>
 
-        {isPremium ? (
-          <Pressable
-            onPress={() => setExportOpen(true)}
-            hitSlop={10}
-            style={{ padding: 2 }}
+          {favorite ? (
+            <SymbolView name="heart.fill" size={15} tintColor={theme.colors.primary} />
+          ) : null}
+
+          {isPremium ? (
+            <Pressable
+              onPress={() => setExportOpen(true)}
+              hitSlop={10}
+              style={{ padding: 2 }}
+            >
+              <SymbolView name="arrow.down.circle" size={18} tintColor={theme.colors.textMuted} />
+            </Pressable>
+          ) : null}
+
+          <Text
+            style={{
+              color: theme.colors.textMuted,
+              fontSize: 13,
+              minWidth: 40,
+              textAlign: 'right',
+              fontFamily: theme.typography.bodyFontFamily,
+            }}
           >
-            <SymbolView name="arrow.down.circle" size={18} tintColor={theme.colors.textMuted} />
-          </Pressable>
-        ) : null}
+            {formatDuration(track.durationMs)}
+          </Text>
 
-        <Text
-          style={{
-            color: theme.colors.textMuted,
-            fontSize: 13,
-            minWidth: 40,
-            textAlign: 'right',
-            fontFamily: theme.typography.bodyFontFamily,
-          }}
-        >
-          {formatDuration(track.durationMs)}
-        </Text>
-      </Pressable>
+          <Pressable
+            onPress={openActions}
+            hitSlop={10}
+            style={{ paddingLeft: 2 }}
+          >
+            <SymbolView name="ellipsis.circle" size={18} tintColor={theme.colors.textMuted} />
+          </Pressable>
+        </Pressable>
+
+        {actionError ? (
+          <Text style={{ color: theme.colors.danger, fontSize: 12, paddingHorizontal: 8 }}>
+            {actionError}
+          </Text>
+        ) : null}
+      </View>
+
+      <TrackActionSheet
+        open={actionSheetOpen}
+        track={track}
+        isFavorite={favorite}
+        isInLibrary={inLibrary}
+        onClose={() => setActionSheetOpen(false)}
+        onPlayNow={() => {
+          playTrack(track, queue);
+          setActionSheetOpen(false);
+        }}
+        onPlayNext={() => {
+          playNext(track);
+          setActionSheetOpen(false);
+        }}
+        onAddToQueue={() => {
+          addToQueue(track);
+          setActionSheetOpen(false);
+        }}
+        onAddToPlaylist={() => {
+          setActionSheetOpen(false);
+          setPlaylistSheetOpen(true);
+        }}
+        onToggleFavorite={() => {
+          favoriteMutation.mutate();
+          setActionSheetOpen(false);
+        }}
+        onToggleLibrary={() => {
+          libraryMutation.mutate();
+          setActionSheetOpen(false);
+        }}
+      />
+
+      <PlaylistSheet
+        open={playlistSheetOpen}
+        onClose={() => setPlaylistSheetOpen(false)}
+        trackIds={[track.id]}
+        heading={`Add "${track.title}" to a playlist`}
+      />
 
       <ExportSheet
         open={exportOpen}

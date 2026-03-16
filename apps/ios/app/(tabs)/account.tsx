@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 import { GlassSurface } from '@/src/components/GlassSurface';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { RemoteArtwork } from '@/src/components/RemoteArtwork';
@@ -23,28 +24,16 @@ export default function AccountScreen() {
 
   return (
     <ScreenView>
-      <View style={{ gap: 6 }}>
-        <Text
-          style={{
-            color: theme.colors.text,
-            fontSize: 30,
-            fontWeight: '800',
-            fontFamily: theme.typography.displayFontFamily,
-          }}
-        >
-          Account
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.textMuted,
-            fontSize: 15,
-            lineHeight: 22,
-            fontFamily: theme.typography.bodyFontFamily,
-          }}
-        >
-          Profile, subscription status, theme controls, and session actions all live here.
-        </Text>
-      </View>
+      <Text
+        style={{
+          color: theme.colors.text,
+          fontSize: 30,
+          fontWeight: '800',
+          fontFamily: theme.typography.displayFontFamily,
+        }}
+      >
+        Account
+      </Text>
 
       <GlassSurface style={{ padding: 20, gap: 16 }}>
         <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
@@ -71,6 +60,81 @@ export default function AccountScreen() {
             </Text>
           </View>
         </View>
+
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <GlassSurface style={{ flex: 1, padding: 14, gap: 6 }}>
+            <Text
+              style={{
+                color: theme.colors.textSubtle,
+                fontSize: 11,
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: 0.7,
+              }}
+            >
+              Privilege
+            </Text>
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 15,
+                fontWeight: '700',
+                fontFamily: theme.typography.displayFontFamily,
+              }}
+            >
+              {user?.role?.replace(/_/g, ' ') ?? 'listener'}
+            </Text>
+          </GlassSurface>
+
+          <GlassSurface style={{ flex: 1, padding: 14, gap: 6 }}>
+            <Text
+              style={{
+                color: theme.colors.textSubtle,
+                fontSize: 11,
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: 0.7,
+              }}
+            >
+              Streaming
+            </Text>
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 15,
+                fontWeight: '700',
+                fontFamily: theme.typography.displayFontFamily,
+              }}
+            >
+              {isPremium ? 'Premium' : 'Free'}
+            </Text>
+          </GlassSurface>
+        </View>
+      </GlassSurface>
+
+      <GlassSurface style={{ padding: 18, gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <SymbolView name="creditcard.fill" size={18} tintColor={theme.colors.secondary} />
+          <Text
+            style={{
+              color: theme.colors.text,
+              fontSize: 20,
+              fontWeight: '700',
+              fontFamily: theme.typography.displayFontFamily,
+            }}
+          >
+            Billing & Subscription
+          </Text>
+        </View>
+        <View style={{ gap: 10 }}>
+          <GlassSurface style={{ padding: 14, gap: 6 }}>
+            <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>
+              {isPremium
+                ? 'High-fidelity streaming, exports, and Minkowski theme are active on this account.'
+                : 'Free access is active. Upgrade to unlock exports and Minkowski theme.'}
+            </Text>
+          </GlassSurface>
+        </View>
       </GlassSurface>
 
       <View style={{ gap: 12 }}>
@@ -82,7 +146,7 @@ export default function AccountScreen() {
             fontFamily: theme.typography.displayFontFamily,
           }}
         >
-          Themes
+          Settings
         </Text>
         {options.map((option) => {
           const previewTheme = getTheme(option.name);

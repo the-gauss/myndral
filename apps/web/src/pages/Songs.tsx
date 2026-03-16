@@ -1,10 +1,14 @@
 import TrackRow from '../components/cards/TrackRow'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
-import { useTracks } from '../hooks/useCatalog'
+import { useCollectionState, useTracks } from '../hooks/useCatalog'
 
 export default function Songs() {
   const { data, isLoading } = useTracks(100)
+  const trackIds = data?.items.map((track) => track.id) ?? []
+  const collection = useCollectionState({ trackIds })
+  const favoriteTrackIds = new Set(collection.data?.favorites.trackIds ?? [])
+  const libraryTrackIds = new Set(collection.data?.library.trackIds ?? [])
 
   return (
     <div className="space-y-6">
@@ -29,6 +33,8 @@ export default function Songs() {
               index={i + 1}
               queue={data.items}
               showAlbum
+              isFavorite={favoriteTrackIds.has(track.id)}
+              isInLibrary={libraryTrackIds.has(track.id)}
             />
           ))}
         </section>

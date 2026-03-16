@@ -24,6 +24,25 @@ Each entry follows STAR format (Situation → Task → Action → Result).
 
 ---
 
+## 2026-03-16 — Shared Account Collection Model: Admin User Management + Library/Favorites Parity
+
+**Situation:** The product already used one shared user account for the listener player and Studio, but the apps exposed only fragments of that model. Studio lacked an admin surface for inspecting shared users, listener library/favorite actions were mostly decorative, and playlists could not be created or managed consistently across web and iOS.
+
+**Task:** Extend the API and all three clients so shared accounts can be administered centrally, while listener-facing collection features become real platform behavior: saved library items, favorites, playlist creation, queue actions, and account management.
+
+**Action:**
+1. **Separated “library” from “favorites” at the data model level** — added dedicated persistence for saved tracks, liked albums, and liked artists, then exposed explicit `/library/*` and `/favorites/*` endpoints plus a `collection-state` aggregation endpoint. This keeps “save for later” distinct from “like” semantics without forcing the clients to infer state from overloaded endpoints.
+
+2. **Made playlist management a first-class shared API** — implemented playlist creation, metadata edits, track add/remove/reorder flows, editable-only playlist listing, and richer playlist serialization (`trackCount`, `canEdit`, `isInLibrary`, `ownerDisplayName`). Both web and iOS now build create-playlist and add-to-playlist UX directly against the same contract.
+
+3. **Added an internal admin user-management router instead of splitting account systems** — introduced `/v1/internal/users` and `/v1/internal/subscription-plans` so Studio admins can inspect shared users, subscription plans, privileges, and account activation state from one place. Guardrails prevent destructive self-edits such as self-demotion or self-deactivation.
+
+4. **Aligned the clients around one collection experience** — Studio received an admin-only Users panel, the web player gained working favorites/library actions plus an account menu and account page, and iOS gained saved/favorites library sections, playlist creation, and long-press track actions. This preserves platform-specific UX while keeping the underlying product model consistent.
+
+**Result:** Shared accounts are now visible and manageable in Studio, while listener collection behavior works across web and iOS using the same API primitives. The repo moved from placeholder interactions to a coherent multi-client model for user administration, playlists, library saves, favorites, and queue actions without breaking existing auth or catalog flows.
+
+---
+
 ## 2026-03-16 — iOS Client First Draft: Shared Brand Sync + Web-Parity API Surface
 
 **Situation:** The repo had a production web client and API, but no iOS app. The new client needed to match the currently working web listener experience without changing existing backend or web code, and brand-sensitive presentation had to stay centralized in `shared/brand`.

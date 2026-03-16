@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from myndral_api.auth_utils import get_current_user
 from myndral_api.db.session import get_db
 from myndral_api.media_utils import normalize_audio_url, normalize_image_url
 
@@ -221,13 +222,39 @@ ORDER BY t.disc_number ASC, t.track_number ASC, t.created_at ASC
 
 
 @router.put("/{album_id}/save", summary="Save album to library")
-async def save_album(album_id: str) -> dict:
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented")
+async def save_album(
+    album_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    album = await _fetch_album(db, album_id)
+    if album is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Album not found")
+
+    await db.execute(
+        text(
+            """
+INSERT INTO user_saved_albums (user_id, album_id)
+VALUES (:user_id, :album_id)
+ON CONFLICT (user_id, album_id) DO NOTHING
+"""
+        ),
+        {"user_id": current_user["id"], "album_id": album_id},
+    )
+    return {"albumId": album_id, "inLibrary": True}
 
 
 @router.delete("/{album_id}/save", summary="Remove album from library")
-async def unsave_album(album_id: str) -> dict:
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented")
+async def unsave_album(
+    album_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    await db.execute(
+        text("DELETE FROM user_saved_albums WHERE user_id = :user_id AND album_id = :album_id"),
+        {"user_id": current_user["id"], "album_id": album_id},
+    )
+    return {"albumId": album_id, "inLibrary": False}
 
 
 async def _fetch_album(db: AsyncSession, album_id: str) -> dict[str, Any] | None:

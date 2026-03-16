@@ -3,7 +3,7 @@ import ArtistCard, { ArtistCardSkeleton } from '../components/cards/ArtistCard'
 import TrackRow from '../components/cards/TrackRow'
 import SectionHeader from '../components/ui/SectionHeader'
 import Skeleton from '../components/ui/Skeleton'
-import { useAlbums, useArtists, useFeaturedTracks } from '../hooks/useCatalog'
+import { useAlbums, useArtists, useCollectionState, useFeaturedTracks } from '../hooks/useCatalog'
 
 function greeting() {
   const h = new Date().getHours()
@@ -16,6 +16,10 @@ export default function Home() {
   const albums = useAlbums(12)
   const artists = useArtists(8)
   const featured = useFeaturedTracks(10)
+  const featuredTrackIds = featured.data?.items.map((track) => track.id) ?? []
+  const featuredCollection = useCollectionState({ trackIds: featuredTrackIds })
+  const favoriteTrackIds = new Set(featuredCollection.data?.favorites.trackIds ?? [])
+  const libraryTrackIds = new Set(featuredCollection.data?.library.trackIds ?? [])
 
   return (
     <div className="space-y-10">
@@ -61,13 +65,15 @@ export default function Home() {
                   <Skeleton className="w-10 h-4" />
                 </div>
               ))
-            : featured.data?.items.map((track, i) => (
+              : featured.data?.items.map((track, i) => (
                 <TrackRow
                   key={track.id}
                   track={track}
                   index={i + 1}
                   queue={featured.data?.items}
                   showAlbum
+                  isFavorite={favoriteTrackIds.has(track.id)}
+                  isInLibrary={libraryTrackIds.has(track.id)}
                 />
               ))}
         </section>

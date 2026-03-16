@@ -22,6 +22,8 @@ interface PlayerContextValue {
   shuffle: boolean;
   repeat: RepeatMode;
   playTrack: (track: Track, contextQueue?: Track[]) => void;
+  addToQueue: (track: Track) => void;
+  playNext: (track: Track) => void;
   togglePlay: () => void;
   next: () => void;
   previous: () => void;
@@ -43,6 +45,8 @@ const PlayerContext = createContext<PlayerContextValue>({
   shuffle: false,
   repeat: 'none',
   playTrack: () => {},
+  addToQueue: () => {},
+  playNext: () => {},
   togglePlay: () => {},
   next: () => {},
   previous: () => {},
@@ -150,6 +154,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     selectTrack(track, contextQueue ?? [track]);
   }
 
+  function addToQueue(track: Track) {
+    setQueue((currentQueue) => {
+      if (!currentTrack) {
+        setCurrentTrack(track);
+        return [track];
+      }
+
+      if (currentQueue.length === 0) {
+        return [currentTrack, track];
+      }
+
+      return [...currentQueue, track];
+    });
+  }
+
+  function playNext(track: Track) {
+    if (!currentTrack) {
+      setQueue([track]);
+      setCurrentTrack(track);
+      return;
+    }
+
+    setQueue((currentQueue) => {
+      const baseQueue = currentQueue.length ? [...currentQueue] : [currentTrack];
+      const currentIndex = Math.max(
+        baseQueue.findIndex((item) => item.id === currentTrack.id),
+        0,
+      );
+      baseQueue.splice(currentIndex + 1, 0, track);
+      return baseQueue;
+    });
+  }
+
   function togglePlay() {
     if (!currentTrack) {
       if (queue[0]) {
@@ -249,6 +286,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         shuffle,
         repeat,
         playTrack,
+        addToQueue,
+        playNext,
         togglePlay,
         next: advanceQueue,
         previous: rewindQueue,

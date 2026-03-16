@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from myndral_api.auth_utils import (
     create_access_token,
     fetch_user_for_login,
-    pwd_context,
+    hash_password,
     to_public_user,
     verify_password,
 )
@@ -50,7 +50,7 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
             detail="Username or email is already registered.",
         )
 
-    hashed_password = pwd_context.hash(payload.password)
+    hashed_password = hash_password(payload.password)
     display_name = (payload.display_name or "").strip() or payload.username
 
     result = await db.execute(
@@ -174,7 +174,7 @@ async def studio_register(payload: StudioRegisterRequest, db: AsyncSession = Dep
             detail="Username or email is already registered.",
         )
 
-    hashed_password = pwd_context.hash(payload.password)
+    hashed_password = hash_password(payload.password)
     display_name = (payload.display_name or "").strip() or payload.username
 
     result = await db.execute(

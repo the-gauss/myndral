@@ -44,22 +44,22 @@ FROM users u
 """
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # Prefer direct bcrypt check first to avoid passlib backend incompatibility
-    # warnings with newer bcrypt package versions.
-    try:
-        if bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8")):
-            return True
-    except Exception:
-        pass
+def hash_password(plain_password: str) -> str:
+    """Hash a plain-text password using bcrypt directly.
 
+    Bypasses passlib to avoid the `__about__` attribute error introduced in
+    bcrypt >= 4.x, where the library removed its version metadata module.
+    """
+    return bcrypt.hashpw(plain_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    # Use direct bcrypt check to avoid passlib backend incompatibility with
+    # bcrypt >= 4.x which removed the __about__ version metadata module.
     try:
-        if pwd_context.verify(plain_password, hashed_password):
-            return True
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
     except Exception:
         return False
-
-    return False
 
 
 def create_access_token(user_id: str) -> tuple[str, int]:

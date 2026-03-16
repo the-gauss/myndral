@@ -47,7 +47,7 @@ export function RemoteArtwork({
               {
                 width: '100%',
                 height: '100%',
-                opacity: isPaper ? 0.72 : 1,
+                opacity: isPaper ? 0.48 : 1,
               },
               imageStyle,
             ]}
@@ -58,16 +58,32 @@ export function RemoteArtwork({
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  backgroundColor: theme.colors.fillSoft,
-                  opacity: 0.28,
+                  backgroundColor: '#e5cfb2',
+                  opacity: 0.34,
                 }}
               />
               <View
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  backgroundColor: theme.colors.backgroundOffset,
+                  backgroundColor: '#caa37d',
                   opacity: 0.18,
+                }}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: '#7c5b41',
+                  opacity: 0.08,
+                }}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderWidth: 1,
+                  borderColor: 'rgba(125, 94, 66, 0.18)',
                 }}
               />
             </>

@@ -9,8 +9,9 @@ import { useAuthStore } from '@/src/stores/authStore';
 export default function TabLayout() {
   const hydrated = useAuthStore((state) => state.hydrated);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const { theme } = useTheme();
+  const { theme, themeName } = useTheme();
   const insets = useSafeAreaInsets();
+  const isPaper = themeName === 'paper';
 
   if (!hydrated) {
     return null;
@@ -33,17 +34,17 @@ export default function TabLayout() {
           height: 64 + insets.bottom,
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 10),
-          backgroundColor: 'transparent',
+          backgroundColor: isPaper ? theme.colors.surfaceRaised : 'transparent',
           borderTopWidth: 1,
-          borderTopColor: theme.colors.glassBorder,
+          borderTopColor: isPaper ? theme.colors.surfaceBorder : theme.colors.glassBorder,
           shadowColor: theme.isDark ? theme.colors.secondary : theme.colors.primary,
-          shadowOpacity: theme.isDark ? 0.12 : 0.06,
-          shadowRadius: 24,
+          shadowOpacity: isPaper ? 0.06 : (theme.isDark ? 0.12 : 0.06),
+          shadowRadius: isPaper ? 18 : 24,
           shadowOffset: { width: 0, height: -10 },
           overflow: 'hidden',
         },
         tabBarBackground: () =>
-          Platform.OS === 'ios' ? (
+          Platform.OS === 'ios' && !isPaper ? (
             <BlurView
               style={StyleSheet.absoluteFill}
               intensity={82}

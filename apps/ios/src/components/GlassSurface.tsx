@@ -13,9 +13,10 @@ export function GlassSurface({
   styleVariant = 'regular',
   ...rest
 }: GlassSurfaceProps) {
-  const { theme } = useTheme();
+  const { theme, themeName } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(10)).current;
+  const isPaper = themeName === 'paper';
 
   useEffect(() => {
     Animated.parallel([
@@ -39,13 +40,15 @@ export function GlassSurface({
       borderRadius: 28,
       overflow: 'hidden' as const,
       borderWidth: 1,
-      borderColor: theme.colors.glassBorder,
+      borderColor: isPaper ? theme.colors.surfaceBorder : theme.colors.glassBorder,
       backgroundColor:
-        styleVariant === 'clear' ? theme.colors.glassBg : theme.colors.glassBgHeavy,
+        isPaper
+          ? (styleVariant === 'clear' ? theme.colors.surface : theme.colors.surfaceRaised)
+          : (styleVariant === 'clear' ? theme.colors.glassBg : theme.colors.glassBgHeavy),
       shadowColor: theme.isDark ? theme.colors.secondary : theme.colors.primary,
-      shadowOpacity: theme.isDark ? 0.14 : 0.1,
-      shadowRadius: 30,
-      shadowOffset: { width: 0, height: 18 },
+      shadowOpacity: isPaper ? 0.08 : (theme.isDark ? 0.14 : 0.1),
+      shadowRadius: isPaper ? 22 : 30,
+      shadowOffset: { width: 0, height: isPaper ? 12 : 18 },
     },
     style,
   ];
@@ -54,7 +57,7 @@ export function GlassSurface({
     transform: [{ translateY }],
   };
 
-  if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
+  if (!isPaper && Platform.OS === 'ios' && isLiquidGlassAvailable()) {
     return (
       <Animated.View style={animatedStyle}>
         <GlassView

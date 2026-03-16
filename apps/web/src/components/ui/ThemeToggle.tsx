@@ -51,7 +51,7 @@ export default function ThemeToggle() {
   }, [open])
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative z-[70]">
       <button
         onClick={() => setOpen(o => !o)}
         title="Change theme"
@@ -61,7 +61,7 @@ export default function ThemeToggle() {
       </button>
 
       {open && (
-        <div className="glass-panel-strong absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-2xl">
+        <div className="glass-panel-strong absolute right-0 z-[80] mt-2 w-52 overflow-hidden rounded-2xl">
 
           {/* Free themes */}
           {ALL_THEMES.filter(t => t !== 'paper').map(t => {

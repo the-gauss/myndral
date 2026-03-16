@@ -75,10 +75,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="browse"
         options={{
-          title: 'Browse',
-          tabBarIcon: ({ color }) => (
-            <SymbolView name="square.grid.2x2.fill" tintColor={color} size={19} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen

@@ -21,13 +21,49 @@
 }
 
 @keyframes ambient-float-primary {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(2.25rem, -1rem, 0) scale(1.04); }
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.94) rotate(-8deg);
+    border-radius: 44% 56% 50% 50% / 48% 42% 58% 52%;
+  }
+  26% {
+    transform: translate3d(30vw, 12vh, 0) scale(1.04) rotate(-1deg);
+    border-radius: 50% 50% 58% 42% / 46% 58% 42% 54%;
+  }
+  60% {
+    transform: translate3d(46vw, 40vh, 0) scale(1.12) rotate(6deg);
+    border-radius: 56% 44% 46% 54% / 52% 40% 60% 48%;
+  }
+  84% {
+    transform: translate3d(12vw, 56vh, 0) scale(1.02) rotate(-3deg);
+    border-radius: 48% 52% 42% 58% / 56% 46% 54% 44%;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.94) rotate(-8deg);
+    border-radius: 44% 56% 50% 50% / 48% 42% 58% 52%;
+  }
 }
 
 @keyframes ambient-float-secondary {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(-1.75rem, 1.25rem, 0) scale(1.06); }
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.96) rotate(7deg);
+    border-radius: 54% 46% 44% 56% / 50% 42% 58% 50%;
+  }
+  32% {
+    transform: translate3d(-26vw, -16vh, 0) scale(1.05) rotate(0deg);
+    border-radius: 46% 54% 58% 42% / 60% 44% 56% 40%;
+  }
+  66% {
+    transform: translate3d(-50vw, -44vh, 0) scale(1.13) rotate(-7deg);
+    border-radius: 58% 42% 48% 52% / 46% 56% 44% 54%;
+  }
+  88% {
+    transform: translate3d(-16vw, 10vh, 0) scale(1.01) rotate(4deg);
+    border-radius: 44% 56% 52% 48% / 54% 40% 60% 46%;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.96) rotate(7deg);
+    border-radius: 54% 46% 44% 56% / 50% 42% 58% 50%;
+  }
 }
 
 @keyframes surface-enter {
@@ -77,18 +113,18 @@
   }
 
   body::before {
-    top: 4rem;
-    right: -5rem;
-    width: 20rem;
-    height: 20rem;
+    top: -5rem;
+    left: -5rem;
+    width: 24rem;
+    height: 24rem;
     background: var(--gradient-orb-primary);
   }
 
   body::after {
-    left: -5rem;
-    bottom: 4rem;
-    width: 24rem;
-    height: 24rem;
+    right: -6rem;
+    bottom: -6rem;
+    width: 28rem;
+    height: 28rem;
     background: var(--gradient-orb-secondary);
   }
 

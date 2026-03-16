@@ -4,6 +4,7 @@ import {
   Animated,
   Easing,
   ScrollView,
+  useWindowDimensions,
   View,
   type ScrollViewProps,
   type StyleProp,
@@ -124,6 +125,11 @@ function AnimatedBubble({
 
 function Atmosphere() {
   const { theme } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const primaryX = Math.max(96, width * 0.44);
+  const primaryY = Math.max(110, height * 0.5);
+  const secondaryX = Math.max(104, width * 0.48);
+  const secondaryY = Math.max(124, height * 0.56);
 
   return (
     <View
@@ -139,8 +145,8 @@ function Atmosphere() {
         size={300}
         top={-108}
         left={-92}
-        xRange={[0, 18, -8]}
-        yRange={[0, 14, -18]}
+        xRange={[0, primaryX, width * 0.12]}
+        yRange={[0, height * 0.12, primaryY]}
         scaleRange={[0.92, 1.08, 0.98]}
         duration={12200}
       />
@@ -150,8 +156,8 @@ function Atmosphere() {
         size={320}
         right={-96}
         bottom={42}
-        xRange={[0, -22, 10]}
-        yRange={[0, -16, 20]}
+        xRange={[0, -secondaryX, -(width * 0.1)]}
+        yRange={[0, -(height * 0.18), -secondaryY]}
         scaleRange={[0.94, 1.12, 0.99]}
         duration={13800}
       />

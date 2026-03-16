@@ -5,6 +5,25 @@ Each entry follows STAR format (Situation → Task → Action → Result).
 
 ---
 
+## 2026-03-16 — Minkowski Theme Mode: Paper Texture + Neutralized Media Across Web, Studio, and iOS
+
+**Situation:** The premium Minkowski theme was still inheriting the new glass/orb language from Light and Dark, which diluted its identity. On iOS it also failed to feel typographically distinct, and several listener screens had grown explanatory copy blocks that competed with the actual content.
+
+**Task:** Re-establish Minkowski as a calm paper-mode experience without regressing the Light/Dark redesign, and do it through the shared brand layer so future theme-kit changes remain centralized.
+
+**Action:**
+1. **Paper-mode semantics pushed into shared brand tokens** — updated `shared/brand/tokens.css` so Minkowski now defines opaque paper surfaces, muted beige secondary tones, texture helper tokens, and media wash overlays. This gives web and iOS the same shared source for texture-adjacent theme behavior instead of ad hoc per-app overrides.
+
+2. **Theme-specific rendering instead of palette swapping** — web and Studio gained `data-theme="paper"` CSS overrides that disable glass blur/orb motion, replace them with layered parchment backgrounds, and soften surface shadows into printed-paper depth. On iOS, `ScreenView`, `GlassSurface`, and the tab bar now branch for `paper` so Minkowski uses textured, non-vibrant surfaces rather than translucent glass.
+
+3. **Media neutralization as a system rule** — paper theme artwork now receives a consistent sepia/beige wash in both web and iOS, including artist hero media on the web side and shared `RemoteArtwork` rendering on iOS. This keeps user/content imagery from fighting the warm editorial palette.
+
+4. **iOS content density reset** — removed non-essential descriptive copy cards from the listener app's visible tabs so Home, Library, Search, and Account emphasize actions and catalog content rather than onboarding prose.
+
+**Result:** Minkowski now behaves like a distinct premium mode instead of “Light/Dark with different colors.” The texture, media treatment, and typography are theme-scoped, Light/Dark stay untouched, and the shared brand layer remains the place to evolve cross-platform visual identity.
+
+---
+
 ## 2026-03-16 — Cross-Platform Glass Redesign: Shared Palette Translation Across Web, Studio, and iOS
 
 **Situation:** The repo had three user-facing surfaces with diverging presentation layers: the web player, the internal Studio app, and the new iOS client. A major redesign needed to land consistently across all of them, while keeping future brand-kit updates centralized in `shared/brand` instead of duplicated inside each app.

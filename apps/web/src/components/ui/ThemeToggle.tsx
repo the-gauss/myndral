@@ -21,7 +21,7 @@ const ALL_THEMES: Theme[] = ['light', 'dark', 'paper']
 function MinkowskiSwatches() {
   return (
     <span className="ml-auto flex items-center gap-0.5">
-      {['#fdf5ec', '#eddfc8', '#c4956a', '#722f37'].map(c => (
+      {['#fdf5ec', '#eddfc8', '#cdb79c', '#722f37'].map(c => (
         <span
           key={c}
           style={{ background: c }}
@@ -100,7 +100,7 @@ export default function ThemeToggle() {
           >
             {isPremium
               ? <Scroll size={14} className="shrink-0" />
-              : <Lock size={14} className="shrink-0 text-[#c4956a]" />
+              : <Lock size={14} className="shrink-0 text-[#cdb79c]" />
             }
             <span className={isPremium ? '' : 'text-[#7a5c42] font-medium'}>
               Minkowski
@@ -108,7 +108,7 @@ export default function ThemeToggle() {
             {isPremium
               ? (theme === 'paper' ? null : <MinkowskiSwatches />)
               : (
-                <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#c4956a' }}>
+                <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#cdb79c' }}>
                   Premium
                 </span>
               )

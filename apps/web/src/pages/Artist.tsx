@@ -29,10 +29,17 @@ export default function Artist() {
   return (
     <div className="space-y-8 -mt-6 -mx-8">
       {/* Hero */}
-      <div
-        className="relative h-64 flex items-end px-8 pb-6 bg-surface"
-        style={heroImageUrl ? { backgroundImage: `url(${heroImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
-      >
+      <div className="relative h-64 flex items-end px-8 pb-6 bg-surface">
+        {heroImageUrl ? (
+          <div
+            className="paper-media-bg absolute inset-0"
+            style={{
+              backgroundImage: `url(${heroImageUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          />
+        ) : null}
         {/* gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
 

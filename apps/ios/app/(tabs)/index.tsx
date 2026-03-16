@@ -37,7 +37,7 @@ export default function HomeScreen() {
             fontWeight: '700',
             textTransform: 'uppercase',
             letterSpacing: 0.7,
-            }}
+          }}
         >
           Listener Home
         </Text>
@@ -51,17 +51,6 @@ export default function HomeScreen() {
         >
           {greeting()}
           {user?.displayName ? `, ${user.displayName}` : ''}.
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.textMuted,
-            fontSize: 15,
-            lineHeight: 22,
-            fontFamily: theme.typography.bodyFontFamily,
-          }}
-        >
-          Every artist, album, and lyric here is AI-born. No catalog filler, no copyright risk,
-          just an always-on synthetic music universe.
         </Text>
       </GlassSurface>
 
@@ -105,41 +94,6 @@ export default function HomeScreen() {
           </View>
         )}
       </View>
-
-      <GlassSurface style={{ padding: 18, gap: 8 }}>
-        <Text
-          style={{
-            color: theme.colors.textSubtle,
-            fontSize: 12,
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: 0.7,
-          }}
-        >
-          Explore More
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.text,
-            fontSize: 24,
-            fontWeight: '800',
-            fontFamily: theme.typography.displayFontFamily,
-          }}
-        >
-          Browse now lives right here in Home.
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.textMuted,
-            fontSize: 14,
-            lineHeight: 21,
-            fontFamily: theme.typography.bodyFontFamily,
-          }}
-        >
-          Artists, albums, playlists, and songs from the full catalog are now woven into the
-          home feed instead of sitting behind a separate tab.
-        </Text>
-      </GlassSurface>
 
       <View>
         <SectionHeader title="Artists" />

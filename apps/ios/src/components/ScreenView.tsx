@@ -35,6 +35,30 @@ interface AnimatedBubbleProps {
   duration: number;
 }
 
+const PAPER_FIBERS = [
+  { x: 0.08, y: 0.12, width: 0.28, height: 2, rotate: '-8deg', opacity: 0.34 },
+  { x: 0.44, y: 0.16, width: 0.22, height: 1, rotate: '12deg', opacity: 0.26 },
+  { x: 0.68, y: 0.24, width: 0.18, height: 2, rotate: '-14deg', opacity: 0.28 },
+  { x: 0.14, y: 0.38, width: 0.2, height: 1, rotate: '18deg', opacity: 0.22 },
+  { x: 0.54, y: 0.44, width: 0.24, height: 2, rotate: '-10deg', opacity: 0.25 },
+  { x: 0.22, y: 0.66, width: 0.26, height: 1, rotate: '9deg', opacity: 0.2 },
+  { x: 0.62, y: 0.72, width: 0.2, height: 2, rotate: '-7deg', opacity: 0.22 },
+  { x: 0.34, y: 0.84, width: 0.16, height: 1, rotate: '13deg', opacity: 0.18 },
+] as const;
+
+const PAPER_SPECKS = [
+  { x: 0.12, y: 0.18, size: 4, opacity: 0.3 },
+  { x: 0.26, y: 0.22, size: 3, opacity: 0.24 },
+  { x: 0.72, y: 0.18, size: 5, opacity: 0.2 },
+  { x: 0.82, y: 0.28, size: 3, opacity: 0.18 },
+  { x: 0.16, y: 0.46, size: 5, opacity: 0.22 },
+  { x: 0.48, y: 0.52, size: 4, opacity: 0.18 },
+  { x: 0.76, y: 0.58, size: 4, opacity: 0.2 },
+  { x: 0.2, y: 0.78, size: 3, opacity: 0.2 },
+  { x: 0.58, y: 0.82, size: 5, opacity: 0.16 },
+  { x: 0.88, y: 0.86, size: 3, opacity: 0.14 },
+] as const;
+
 function AnimatedBubble({
   color,
   opacity,
@@ -126,6 +150,90 @@ function AnimatedBubble({
 function Atmosphere() {
   const { theme } = useTheme();
   const { width, height } = useWindowDimensions();
+
+  if (theme.isPaper) {
+    return (
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          inset: 0,
+        }}
+      >
+        <View
+          style={{
+            position: 'absolute',
+            top: -height * 0.08,
+            left: -width * 0.12,
+            width: width * 0.78,
+            height: width * 0.78,
+            borderRadius: width * 0.39,
+            backgroundColor: theme.effects.textureBlotch,
+            opacity: 0.72,
+            transform: [{ rotate: '-14deg' }],
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            right: -width * 0.16,
+            bottom: height * 0.08,
+            width: width * 0.66,
+            height: width * 0.66,
+            borderRadius: width * 0.33,
+            backgroundColor: theme.colors.backgroundOffset,
+            opacity: 0.28,
+            transform: [{ rotate: '18deg' }],
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: width * 0.18,
+            bottom: -height * 0.08,
+            width: width * 0.5,
+            height: width * 0.34,
+            borderRadius: width * 0.18,
+            backgroundColor: theme.effects.textureBlotch,
+            opacity: 0.26,
+            transform: [{ rotate: '-8deg' }],
+          }}
+        />
+        {PAPER_FIBERS.map((fiber, index) => (
+          <View
+            key={`fiber-${index}`}
+            style={{
+              position: 'absolute',
+              left: width * fiber.x,
+              top: height * fiber.y,
+              width: width * fiber.width,
+              height: fiber.height,
+              borderRadius: 999,
+              backgroundColor: theme.effects.textureFiber,
+              opacity: fiber.opacity,
+              transform: [{ rotate: fiber.rotate }],
+            }}
+          />
+        ))}
+        {PAPER_SPECKS.map((speck, index) => (
+          <View
+            key={`speck-${index}`}
+            style={{
+              position: 'absolute',
+              left: width * speck.x,
+              top: height * speck.y,
+              width: speck.size,
+              height: speck.size,
+              borderRadius: speck.size / 2,
+              backgroundColor: theme.effects.textureSpeck,
+              opacity: speck.opacity,
+            }}
+          />
+        ))}
+      </View>
+    );
+  }
+
   const primaryX = Math.max(96, width * 0.44);
   const primaryY = Math.max(110, height * 0.5);
   const secondaryX = Math.max(104, width * 0.48);

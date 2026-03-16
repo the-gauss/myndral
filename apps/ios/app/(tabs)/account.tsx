@@ -23,28 +23,16 @@ export default function AccountScreen() {
 
   return (
     <ScreenView>
-      <View style={{ gap: 6 }}>
-        <Text
-          style={{
-            color: theme.colors.text,
-            fontSize: 30,
-            fontWeight: '800',
-            fontFamily: theme.typography.displayFontFamily,
-          }}
-        >
-          Account
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.textMuted,
-            fontSize: 15,
-            lineHeight: 22,
-            fontFamily: theme.typography.bodyFontFamily,
-          }}
-        >
-          Profile, subscription status, theme controls, and session actions all live here.
-        </Text>
-      </View>
+      <Text
+        style={{
+          color: theme.colors.text,
+          fontSize: 30,
+          fontWeight: '800',
+          fontFamily: theme.typography.displayFontFamily,
+        }}
+      >
+        Account
+      </Text>
 
       <GlassSurface style={{ padding: 20, gap: 16 }}>
         <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>

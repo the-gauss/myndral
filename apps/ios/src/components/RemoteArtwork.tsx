@@ -37,12 +37,42 @@ export function RemoteArtwork({
       ]}
     >
       {resolvedUri ? (
-        <Image
-          source={{ uri: resolvedUri }}
-          contentFit="cover"
-          transition={180}
-          style={[{ width: '100%', height: '100%' }, imageStyle]}
-        />
+        <>
+          <Image
+            source={{ uri: resolvedUri }}
+            contentFit="cover"
+            transition={180}
+            style={[
+              {
+                width: '100%',
+                height: '100%',
+                opacity: theme.isPaper ? 0.78 : 1,
+              },
+              imageStyle,
+            ]}
+          />
+          {theme.isPaper ? (
+            <>
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: theme.effects.mediaWash,
+                }}
+              />
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: theme.effects.mediaWashStrong,
+                  opacity: 0.56,
+                }}
+              />
+            </>
+          ) : null}
+        </>
       ) : (
         <SymbolView
           name={placeholderSymbol}

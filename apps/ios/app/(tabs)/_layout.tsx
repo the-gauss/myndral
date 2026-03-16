@@ -33,17 +33,21 @@ export default function TabLayout() {
           height: 64 + insets.bottom,
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 10),
-          backgroundColor: 'transparent',
+          backgroundColor: theme.isPaper ? theme.colors.surfaceRaised : 'transparent',
           borderTopWidth: 1,
-          borderTopColor: theme.colors.glassBorder,
-          shadowColor: theme.isDark ? theme.colors.secondary : theme.colors.primary,
-          shadowOpacity: theme.isDark ? 0.12 : 0.06,
-          shadowRadius: 24,
-          shadowOffset: { width: 0, height: -10 },
+          borderTopColor: theme.isPaper ? theme.colors.surfaceBorder : theme.colors.glassBorder,
+          shadowColor: theme.isPaper
+            ? theme.colors.textMuted
+            : theme.isDark
+              ? theme.colors.secondary
+              : theme.colors.primary,
+          shadowOpacity: theme.isPaper ? 0.08 : theme.isDark ? 0.12 : 0.06,
+          shadowRadius: theme.isPaper ? 14 : 24,
+          shadowOffset: { width: 0, height: theme.isPaper ? -4 : -10 },
           overflow: 'hidden',
         },
         tabBarBackground: () =>
-          Platform.OS === 'ios' ? (
+          Platform.OS === 'ios' && !theme.isPaper ? (
             <BlurView
               style={StyleSheet.absoluteFill}
               intensity={82}
@@ -64,6 +68,7 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '700',
+          fontFamily: theme.typography.bodyFontFamily,
         },
       }}
     >

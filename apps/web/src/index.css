@@ -205,6 +205,42 @@
   input[type="range"] {
     @apply cursor-pointer accent-accent;
   }
+
+  html[data-theme="paper"],
+  html[data-theme="paper"] body,
+  html[data-theme="paper"] #root {
+    background:
+      radial-gradient(circle at 14% 16%, rgba(255, 252, 247, 0.92), transparent 34%),
+      radial-gradient(circle at 82% 22%, var(--texture-blotch), transparent 40%),
+      radial-gradient(circle at 68% 78%, rgba(233, 220, 202, 0.22), transparent 36%),
+      repeating-linear-gradient(
+        102deg,
+        transparent 0 13px,
+        color-mix(in srgb, var(--texture-fiber) 74%, transparent) 13px 14px,
+        transparent 14px 28px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        color-mix(in srgb, var(--texture-speck) 22%, transparent) 0 1px,
+        transparent 1px 8px
+      ),
+      var(--color-bg);
+    background-attachment: fixed;
+  }
+
+  html[data-theme="paper"] body::before,
+  html[data-theme="paper"] body::after {
+    opacity: 0;
+    animation: none;
+  }
+
+  html[data-theme="paper"] img {
+    filter: sepia(0.76) saturate(0.42) brightness(1.03) contrast(0.92);
+  }
+
+  html[data-theme="paper"] .paper-media-bg {
+    filter: sepia(0.76) saturate(0.42) brightness(1.03) contrast(0.92);
+  }
 }
 
 @layer components {
@@ -298,5 +334,48 @@
 
   .soft-enter {
     animation: surface-enter 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  [data-theme="paper"] .glass-panel,
+  [data-theme="paper"] .glass-panel-strong,
+  [data-theme="paper"] .glass-panel-vibrant,
+  [data-theme="paper"] .glass-toolbar,
+  [data-theme="paper"] .glass-pill,
+  [data-theme="paper"] .glass-input {
+    background:
+      linear-gradient(180deg, rgba(255, 252, 248, 0.8), rgba(247, 239, 228, 0.94)),
+      repeating-linear-gradient(
+        103deg,
+        transparent 0 14px,
+        color-mix(in srgb, var(--texture-fiber) 66%, transparent) 14px 15px,
+        transparent 15px 29px
+      );
+    border-color: color-mix(in srgb, var(--glass-border) 78%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 252, 248, 0.82),
+      inset 0 -1px 0 rgba(180, 148, 110, 0.08),
+      0 10px 24px rgba(91, 67, 45, 0.08);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  [data-theme="paper"] .glass-toolbar,
+  [data-theme="paper"] .glass-panel-vibrant {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 252, 248, 0.84),
+      inset 0 -1px 0 rgba(180, 148, 110, 0.08),
+      0 14px 30px rgba(91, 67, 45, 0.1);
+  }
+
+  [data-theme="paper"] .glass-input:focus {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 252, 248, 0.82),
+      0 0 0 3px rgba(114, 47, 55, 0.12),
+      0 10px 24px rgba(91, 67, 45, 0.08);
+  }
+
+  [data-theme="paper"] .surface-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 26px rgba(91, 67, 45, 0.1);
   }
 }

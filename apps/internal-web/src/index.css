@@ -82,7 +82,7 @@
 @layer base {
   html, body, #root {
     @apply h-full text-foreground;
-    font-family: var(--font-main);
+    font-family: var(--font-chat);
     -webkit-font-smoothing: antialiased;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(0, 0, 0, 0.12)),
@@ -160,6 +160,34 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { @apply rounded-full bg-border/80; }
   ::-webkit-scrollbar-thumb:hover { @apply bg-muted-fg; }
+
+  html[data-theme="paper"],
+  html[data-theme="paper"] body,
+  html[data-theme="paper"] #root {
+    background:
+      radial-gradient(circle at 14% 16%, rgba(255, 252, 247, 0.92), transparent 34%),
+      radial-gradient(circle at 82% 22%, var(--texture-blotch), transparent 40%),
+      radial-gradient(circle at 68% 78%, rgba(233, 220, 202, 0.22), transparent 36%),
+      repeating-linear-gradient(
+        102deg,
+        transparent 0 13px,
+        color-mix(in srgb, var(--texture-fiber) 74%, transparent) 13px 14px,
+        transparent 14px 28px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        color-mix(in srgb, var(--texture-speck) 22%, transparent) 0 1px,
+        transparent 1px 8px
+      ),
+      var(--color-bg);
+    background-attachment: fixed;
+  }
+
+  html[data-theme="paper"] body::before,
+  html[data-theme="paper"] body::after {
+    opacity: 0;
+    animation: none;
+  }
 }
 
 @layer components {
@@ -332,5 +360,35 @@
     box-shadow:
       inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 30%, transparent),
       0 10px 22px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  [data-theme="paper"] .glass-panel,
+  [data-theme="paper"] .glass-panel-strong,
+  [data-theme="paper"] .glass-toolbar,
+  [data-theme="paper"] .glass-pill,
+  [data-theme="paper"] .glass-input,
+  [data-theme="paper"] .studio-card,
+  [data-theme="paper"] .studio-card-soft,
+  [data-theme="paper"] .studio-table-card,
+  [data-theme="paper"] .studio-modal-card,
+  [data-theme="paper"] .studio-readonly,
+  [data-theme="paper"] .studio-outline-button,
+  [data-theme="paper"] .studio-shell :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select),
+  [data-theme="paper"] .studio-shell input[type="file"] {
+    background:
+      linear-gradient(180deg, rgba(255, 252, 248, 0.8), rgba(247, 239, 228, 0.94)),
+      repeating-linear-gradient(
+        103deg,
+        transparent 0 14px,
+        color-mix(in srgb, var(--texture-fiber) 66%, transparent) 14px 15px,
+        transparent 15px 29px
+      ) !important;
+    border-color: color-mix(in srgb, var(--glass-border) 78%, transparent) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 252, 248, 0.82),
+      inset 0 -1px 0 rgba(180, 148, 110, 0.08),
+      0 10px 24px rgba(91, 67, 45, 0.08) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 }

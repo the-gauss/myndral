@@ -36,28 +36,16 @@ export default function SearchScreen() {
 
   return (
     <ScreenView>
-      <View style={{ gap: 6 }}>
-        <Text
-          style={{
-            color: theme.colors.text,
-            fontSize: 30,
-            fontWeight: '800',
-            fontFamily: theme.typography.displayFontFamily,
-          }}
-        >
-          Search
-        </Text>
-        <Text
-          style={{
-            color: theme.colors.textMuted,
-            fontSize: 15,
-            lineHeight: 22,
-            fontFamily: theme.typography.bodyFontFamily,
-          }}
-        >
-          Artists, albums, songs, and playlists all search through the same API as the web player.
-        </Text>
-      </View>
+      <Text
+        style={{
+          color: theme.colors.text,
+          fontSize: 30,
+          fontWeight: '800',
+          fontFamily: theme.typography.displayFontFamily,
+        }}
+      >
+        Search
+      </Text>
 
       <TextInput
         value={query}
@@ -81,7 +69,7 @@ export default function SearchScreen() {
       {!debouncedQuery ? (
         <EmptyState
           title="Start typing to search"
-          message="The iOS app mirrors the listener-facing web search surface, including cross-entity results."
+          message="Artists, albums, songs, and playlists appear here."
           symbol="magnifyingglass"
         />
       ) : searchQuery.isLoading ? (

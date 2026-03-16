@@ -7,7 +7,7 @@ import {
 } from '@/src/generated/brandTokens';
 
 const serifFontFamily = Platform.select({
-  ios: 'Times New Roman',
+  ios: 'Georgia',
   default: 'serif',
 });
 
@@ -25,6 +25,7 @@ export interface AppTheme {
   label: string;
   description: string;
   isDark: boolean;
+  isPaper: boolean;
   usesSerifBody: boolean;
   colors: {
     background: string;
@@ -53,6 +54,13 @@ export interface AppTheme {
     sidebarActive: string;
     sidebarActiveText: string;
   };
+  effects: {
+    textureFiber: string;
+    textureSpeck: string;
+    textureBlotch: string;
+    mediaWash: string;
+    mediaWashStrong: string;
+  };
   typography: {
     bodyFontFamily?: string;
     displayFontFamily?: string;
@@ -69,6 +77,7 @@ export function getTheme(themeName: AppThemeName): AppTheme {
     label: theme.label,
     description: theme.description,
     isDark: themeName === 'dark',
+    isPaper: themeName === 'paper',
     usesSerifBody,
     colors: {
       background: tokens['color-bg'],
@@ -96,6 +105,13 @@ export function getTheme(themeName: AppThemeName): AppTheme {
       sidebarBg: tokens['color-sidebar-bg'],
       sidebarActive: tokens['color-sidebar-item-active'],
       sidebarActiveText: tokens['color-sidebar-item-active-text'],
+    },
+    effects: {
+      textureFiber: tokens['texture-fiber'] ?? 'rgba(255,255,255,0)',
+      textureSpeck: tokens['texture-speck'] ?? 'rgba(255,255,255,0)',
+      textureBlotch: tokens['texture-blotch'] ?? 'rgba(255,255,255,0)',
+      mediaWash: tokens['media-wash'] ?? 'rgba(255,255,255,0)',
+      mediaWashStrong: tokens['media-wash-strong'] ?? 'rgba(255,255,255,0)',
     },
     typography: {
       bodyFontFamily: usesSerifBody ? serifFontFamily : undefined,

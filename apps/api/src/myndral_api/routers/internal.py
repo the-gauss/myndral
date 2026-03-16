@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
@@ -24,6 +24,7 @@ from myndral_api.media_utils import (
     guess_audio_format,
     guess_media_type,
     infer_local_audio_metadata,
+    is_audio_magic_bytes,
     is_local_storage_url,
     is_remote_storage_url,
     normalize_image_url,
@@ -1441,27 +1442,51 @@ LIMIT :limit OFFSET :offset
     }
 
 
-@router.get("/music/file", summary="Read a generated local audio file")
+@router.get("/music/file", summary="Stream a generated audio file for staging preview")
 async def read_generated_music_file(
     storage_url: str = Query(alias="storageUrl", min_length=1),
     _: dict = Depends(_require_internal_user),
-) -> FileResponse:
+) -> Response:
+    """Return the raw bytes of a generated audio file for in-browser preview.
+
+    Accepts both local ``data/`` paths (dev) and ``gs://`` URLs (production).
+    This endpoint is internal-only; the caller must hold a valid studio session.
+    """
     normalized = storage_url.strip()
-    if not is_local_storage_url(normalized):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="storageUrl must point to a local data/* file.",
+
+    # ── Local file (dev) ──────────────────────────────────────────────────────
+    if is_local_storage_url(normalized):
+        path = resolve_local_storage_path(normalized)
+        if path is None:
+            raise HTTPException(status_code=404, detail="Generated file not found in data/ folder.")
+        fallback_format = guess_audio_format(path.name)
+        return FileResponse(
+            path=path,
+            media_type=guess_media_type(path, fallback_format=fallback_format),
+            filename=path.name,
         )
 
-    path = resolve_local_storage_path(normalized)
-    if path is None:
-        raise HTTPException(status_code=404, detail="Generated file not found in data/ folder.")
+    # ── GCS (production) ─────────────────────────────────────────────────────
+    if normalized.startswith("gs://"):
+        from myndral_api.gcs_utils import download_gcs_bytes
 
-    fallback_format = guess_audio_format(path.name)
-    return FileResponse(
-        path=path,
-        media_type=guess_media_type(path, fallback_format=fallback_format),
-        filename=path.name,
+        try:
+            data, _ = download_gcs_bytes(normalized)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Could not retrieve file from storage: {exc}",
+            ) from exc
+
+        object_name = normalized[5:].partition("/")[2]  # strip "gs://bucket/"
+        from pathlib import Path as _Path
+        fallback_format = guess_audio_format(object_name)
+        media_type = guess_media_type(_Path(object_name), fallback_format)
+        return Response(content=data, media_type=media_type)
+
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="storageUrl must be a local data/* path or a gs:// URL.",
     )
 
 
@@ -1486,20 +1511,13 @@ _ALLOWED_AUDIO_EXTENSIONS: frozenset[str] = frozenset(
     ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"]
 )
 
-# Maps file-extension identifiers that are valid containers but whose name does
-# not appear as a value in the audio_format DB enum.  The enum stores codec
-# identity, not container name, so we normalise here before any DB write.
+# Maps file-extension identifiers (container names) that differ from their
+# audio_format enum value (codec name) before any DB write.
 #
-#   audio_format enum values: 'mp3', 'aac', 'ogg', 'flac', 'opus'
+#   audio_format enum values: 'mp3', 'aac', 'ogg', 'flac', 'opus', 'wav'
+#                              (wav added by migration 20260316_01)
 #
-#   m4a — AAC audio in an MPEG-4 container.  The codec IS aac; only the
-#          container name differs.  Safe to store as 'aac'.
-#
-# NOTE: 'wav' is also accepted by the upload handler but is not in the enum.
-# WAV (uncompressed PCM) has no equivalent codec already in the enum, so it
-# cannot be safely aliased here.  A future migration should run:
-#   ALTER TYPE audio_format ADD VALUE 'wav';
-# Until then, wav uploads will fail at the DB write with a clear enum error.
+#   m4a — AAC audio in an MPEG-4 container; the codec is 'aac'.
 _EXT_TO_DB_FORMAT: dict[str, str] = {
     "m4a": "aac",
 }
@@ -1613,7 +1631,19 @@ async def upload_custom_music(
 
     try:
         contents = await file.read()
+        # Validate magic bytes before touching the filesystem — catches non-audio
+        # files uploaded with a spoofed extension or MIME type (e.g. a video .mp4
+        # renamed to .mp3).  We check here rather than after disk-write so we
+        # never need to clean up a partially-written temp file on rejection.
+        if not is_audio_magic_bytes(contents[:12]):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Uploaded file does not appear to be a valid audio file. "
+                       "Ensure the file is not corrupted or a non-audio format.",
+            )
         output_path.write_bytes(contents)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

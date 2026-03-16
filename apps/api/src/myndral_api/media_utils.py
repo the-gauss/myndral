@@ -121,7 +121,7 @@ def guess_audio_format(storage_url: str) -> str | None:
     if not storage_url:
         return None
     suffix = Path(storage_url).suffix.lower().lstrip(".")
-    if suffix in {"mp3", "aac", "ogg", "flac", "opus"}:
+    if suffix in {"mp3", "aac", "ogg", "flac", "opus", "wav"}:
         return suffix
     return None
 
@@ -132,15 +132,53 @@ def guess_media_type(path: Path, fallback_format: str | None = None) -> str:
         return media_type
 
     by_format = {
-        "mp3": "audio/mpeg",
+        "mp3":  "audio/mpeg",
         "flac": "audio/flac",
-        "ogg": "audio/ogg",
-        "aac": "audio/aac",
+        "ogg":  "audio/ogg",
+        "aac":  "audio/aac",
         "opus": "audio/opus",
+        "wav":  "audio/wav",
     }
     if fallback_format and fallback_format in by_format:
         return by_format[fallback_format]
     return "application/octet-stream"
+
+
+def is_audio_magic_bytes(header: bytes) -> bool:
+    """Return True if the leading bytes of a file match a known audio container/codec.
+
+    Operates on the first 12 bytes only.  Intended as a server-side guard
+    against non-audio files uploaded with a spoofed extension or MIME type
+    (e.g. a video .mp4 renamed to .mp3).  Runs after MIME and extension checks.
+
+    Formats covered: MP3 (ID3 / MPEG sync), FLAC, OGG (Vorbis/Opus),
+    WAV (RIFF/WAVE), M4A/AAC in MPEG-4 container (ftyp box), AAC ADTS stream.
+    """
+    if len(header) < 4:
+        return False
+    # MP3 — ID3v2 tag prefix or raw MPEG sync word
+    if header[:3] == b"ID3":
+        return True
+    # MPEG audio sync: 0xFF followed by a byte with the top 3 bits set (0xEx or 0xFx)
+    # and at least one of the layer bits set — covers MP1/MP2/MP3.
+    if header[0] == 0xFF and (header[1] & 0xE0) == 0xE0 and (header[1] & 0x06) != 0:
+        return True
+    # FLAC
+    if header[:4] == b"fLaC":
+        return True
+    # OGG container (Vorbis, Opus, FLAC-in-OGG)
+    if header[:4] == b"OggS":
+        return True
+    # WAV — RIFF container; WAVE fourcc at bytes 8-11 distinguishes from other RIFF files
+    if header[:4] == b"RIFF" and len(header) >= 12 and header[8:12] == b"WAVE":
+        return True
+    # MPEG-4 audio container (M4A / AAC-LC / ALAC) — ftyp box always starts at byte 4
+    if len(header) >= 8 and header[4:8] == b"ftyp":
+        return True
+    # AAC ADTS raw bitstream (no container wrapper)
+    if header[0] == 0xFF and header[1] in (0xF1, 0xF9):
+        return True
+    return False
 
 
 def infer_local_audio_metadata(storage_url: str) -> dict[str, Any] | None:

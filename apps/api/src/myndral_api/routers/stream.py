@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from myndral_api.db.session import get_db
 from myndral_api.media_utils import (
+    gcs_to_public_https,
     guess_media_type,
     is_remote_storage_url,
     resolve_local_storage_path,
@@ -59,8 +60,9 @@ LIMIT 1
         )
 
     if is_remote_storage_url(storage_url):
-        # For remote URLs, rely on object storage/CDN streaming capabilities.
-        return RedirectResponse(storage_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+        # gs:// URLs can't be followed by browsers — convert to public HTTPS first.
+        redirect_url = gcs_to_public_https(storage_url) if storage_url.startswith("gs://") else storage_url
+        return RedirectResponse(redirect_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

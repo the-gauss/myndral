@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+import mimetypes
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, Response
 
 from myndral_api.config import get_settings
 from myndral_api.media_utils import DATA_DIR
@@ -57,13 +59,33 @@ app.include_router(search.router,        prefix="/v1/search",        tags=["sear
 app.include_router(stream.router,        prefix="/v1/stream",        tags=["stream"])
 app.include_router(exports.router,       prefix="/v1",               tags=["exports"])
 
-# ── Static image assets ───────────────────────────────────────────────────────
-# Locally uploaded images (artist portraits, album covers) are stored under
-# data/images/ and served at /v1/images/<filename>.  The directory is created
-# eagerly so StaticFiles does not raise at startup.  Both the web player and
-# the internal studio proxy /v1 to this API, so the path resolves correctly in
-# all environments.  Remote (CDN/S3) URLs are returned as-is from the DB and
-# bypass this mount entirely.
+# ── Image proxy ───────────────────────────────────────────────────────────────
+# Serves locally uploaded images in dev and proxies from GCS in production.
+# Both modes share the same /v1/images/<filename> URL so callers never need to
+# know where the file lives.  Using a route (rather than StaticFiles) means
+# we don't need a public-read GCS bucket — the API's service account handles
+# access transparently.
 _IMAGES_DIR = DATA_DIR / "images"
 _IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/v1/images", StaticFiles(directory=_IMAGES_DIR), name="images")
+
+
+@app.get("/v1/images/{filepath:path}", include_in_schema=False)
+async def serve_image(filepath: str) -> Response:
+    _settings = get_settings()
+    if _settings.gcs_bucket_name:
+        # Production: fetch from GCS using the service account's ADC credentials.
+        from google.cloud import storage as _gcs  # lazy — not needed in dev
+
+        try:
+            blob = _gcs.Client().bucket(_settings.gcs_bucket_name).blob(f"images/{filepath}")
+            data = blob.download_as_bytes()
+        except Exception:
+            raise HTTPException(status_code=404, detail="Image not found.")
+        mime, _ = mimetypes.guess_type(filepath)
+        return Response(content=data, media_type=mime or "application/octet-stream")
+    else:
+        # Dev: read from local data/images/ directory.
+        local_path = _IMAGES_DIR / filepath
+        if not local_path.exists() or not local_path.is_file():
+            raise HTTPException(status_code=404, detail="Image not found.")
+        return FileResponse(local_path)

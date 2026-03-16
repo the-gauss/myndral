@@ -1176,6 +1176,7 @@ RETURNING id::text
             output_subdir=settings.elevenlabs_output_subdir,
             filename_hint=payload.file_name or payload.track_title,
             seed=payload.seed,
+            gcs_bucket=settings.gcs_bucket_name or None,
         )
     except MusicGenerationError as exc:
         error_detail = str(exc)
@@ -1518,19 +1519,38 @@ async def upload_image(
         )
 
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    output_dir = DATA_DIR / "images"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{timestamp}.{ext}"
+    filename = f"{timestamp}.{ext}"
+    contents = await file.read()
+    mime = content_type or f"image/{ext}"
 
-    try:
-        output_path.write_bytes(await file.read())
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save image: {exc}",
-        ) from exc
+    settings = get_settings()
+    if settings.gcs_bucket_name:
+        # Production: upload directly to GCS; images/ prefix is public-read.
+        from myndral_api.gcs_utils import upload_bytes_to_gcs  # lazy — not needed in dev
 
-    return {"storageUrl": f"data/images/{output_path.name}"}
+        try:
+            storage_url = upload_bytes_to_gcs(
+                settings.gcs_bucket_name, f"images/{filename}", contents, mime
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to upload image to GCS: {exc}",
+            ) from exc
+    else:
+        output_dir = DATA_DIR / "images"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / filename
+        try:
+            output_path.write_bytes(contents)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to save image: {exc}",
+            ) from exc
+        storage_url = f"data/images/{filename}"
+
+    return {"storageUrl": storage_url}
 
 
 @router.post("/music/upload", summary="Upload a custom audio file to staging (bypasses generation API)")
@@ -1557,7 +1577,10 @@ async def upload_custom_music(
             detail=f"Unsupported file type '{content_type}'. Upload an audio file (mp3, wav, flac, ogg, m4a, aac, opus).",
         )
 
-    # ── Persist to data/generated/music/ ─────────────────────────────────────
+    # ── Persist audio file ────────────────────────────────────────────────────
+    # Always write to disk first: mutagen needs a seekable file to infer
+    # duration/bitrate/sample-rate.  If GCS is configured we then stream
+    # the local copy up to the bucket and use the gs:// URL in the DB.
     slug = re.sub(r"[^a-z0-9]+", "-", track_title.strip().lower()).strip("-")[:50]
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     filename = f"{timestamp}-{slug}.{ext}"
@@ -1574,10 +1597,30 @@ async def upload_custom_music(
             detail=f"Failed to save uploaded file: {exc}",
         ) from exc
 
-    storage_url = f"data/{output_path.relative_to(DATA_DIR).as_posix()}"
+    local_storage_url = f"data/{output_path.relative_to(DATA_DIR).as_posix()}"
 
-    # ── Infer audio metadata ──────────────────────────────────────────────────
-    meta = infer_local_audio_metadata(storage_url) or {}
+    # ── Infer audio metadata (from the local copy) ────────────────────────────
+    meta = infer_local_audio_metadata(local_storage_url) or {}
+    # Upload to GCS after metadata inference so we don't lose the local file
+    # before mutagen reads it.
+    settings = get_settings()
+    if settings.gcs_bucket_name:
+        from myndral_api.gcs_utils import upload_file_to_gcs  # lazy — not needed in dev
+
+        try:
+            storage_url = upload_file_to_gcs(
+                settings.gcs_bucket_name,
+                f"generated/music/{filename}",
+                output_path,
+                content_type or f"audio/{ext}",
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to upload audio to GCS: {exc}",
+            ) from exc
+    else:
+        storage_url = local_storage_url
     duration_ms = int(meta.get("duration_ms") or 0)
     file_size_bytes = int(meta.get("file_size_bytes") or output_path.stat().st_size)
     sample_rate_hz = meta.get("sample_rate_hz")

@@ -62,6 +62,31 @@ Each entry follows STAR format (Situation → Task → Action → Result).
 
 ---
 
+## 2026-03-16 — iOS Creator Studio: Dual-App Navigation Pattern Within a Single Binary
+
+**Situation:** The product had a fully functional web-based Creator Studio for content editors and reviewers, but iOS users had no access to it. The Studio is a fundamentally different UX from the listener music app — different navigation, different data, different privilege model — so simply adding more screens to the existing tab bar would have produced an incoherent product.
+
+**Task:** Bring the full Studio feature set (Artist/Album/Song creation with AI generation, file upload, staging review queue) to iOS without muddying the listener experience, and support image/audio upload, role gating, and live audio preview natively.
+
+**Action:**
+1. **Separate Expo Router route group as a parallel "app"** — rather than a runtime mode-store toggle that conditionally renders different screen trees, the Studio lives in its own `(studio)` route group with its own `Tabs` navigator. Switching from listener → Studio is a single `router.replace('/(studio)/artists')` call; switching back is `router.replace('/')`. This gives a clean "two different apps" experience while keeping navigation state predictable and auth-gate logic colocated in each layout.
+
+2. **Auth gate in layout, not in every screen** — `(studio)/_layout.tsx` checks `hasStudioAccess(user?.role)` after hydration and issues a declarative `<Redirect>` before the Tabs tree renders. Unauthenticated users hit `/login`; listeners hit `/studio-access`. This pattern is idiomatic Expo Router and centralizes access control rather than scattering guard logic across four screen files.
+
+3. **Studio-access token claim as a separate stack route** — rather than a modal or inline form in the account screen, the claim flow (`/studio-access`) is a full stack screen. The API call (`POST /v1/auth/studio-claim`) returns a fresh JWT and updated user; `setSession()` updates the Zustand store in place so the session upgrades immediately without re-login, then `router.replace('/(studio)/artists')` completes the transition.
+
+4. **Mini-player suppression via segment detection** — the root `_layout.tsx` already conditions the floating mini player on various route checks. Added `segments[0] === '(studio)' || segments[0] === 'studio-access'` to the guard so the music playback UI is fully hidden in Studio context without any cross-store coupling.
+
+5. **Native FormData uploads for image and audio** — React Native has no browser `File` object. Uploads use `form.append('file', { uri, type, name } as unknown as Blob)` with an explicit `Content-Type: 'multipart/form-data'` header. Unlike the browser pattern (where setting `Content-Type` to `null` lets the runtime add the boundary), the RN `fetch` layer handles boundary injection automatically when the body is a `FormData` instance.
+
+6. **expo-audio for authenticated audio preview** — the web Studio uses `URL.createObjectURL(blob)` which doesn't exist in RN. iOS Studio uses `expo-audio`'s `createAudioPlayer` directly with the authenticated proxy URL (`/v1/internal/music/file?storageUrl=…` + Authorization header). This works for both staging previews and the jobs list without any blob plumbing.
+
+7. **Role-based capability model** — `hasStudioAccess`, `canReview`, `canEdit` helpers in `src/types/studio.ts` cover the three token types (content_editor, content_reviewer, admin). The Songs screen role-gates the Generate/Upload tabs; the Staging screen hides Approve/Reject/Revision buttons for non-reviewers. Checking role capability at render time (not just at route entry) ensures viewers don't see actions they can't perform.
+
+**Result:** iOS now ships a full Creator Studio as a parallel app inside the same binary — Artists, Albums, Songs (AI generation + upload), and Staging with approve/reject/revision flows. Privilege escalation happens without re-login. Audio preview, image upload, and document upload all work natively. The listener music experience is completely unaffected.
+
+---
+
 ## 2026-03-15 — Polymorphic Staging Pipeline: Full Content Flow (Artist → Album → Track → Player)
 
 **Situation:** Tracks approved in staging never appeared in the user-facing player. Two root causes: (1) public catalog APIs filter on `artists.status='published' AND albums.status='published'` — approving a track in isolation left the parent album/artist unpublished, making the track invisible. (2) Staging only supported tracks; artists and albums had no review lifecycle, making the hierarchy incomplete.

@@ -110,6 +110,13 @@ module.exports = {
       'expo-sharing',
       'expo-secure-store',
       'expo-image',
+      [
+        'expo-image-picker',
+        {
+          photosPermission: 'MyndralAI Studio uses your photo library to upload artwork for artists and albums.',
+        },
+      ],
+      'expo-document-picker',
     ],
     experiments: {
       typedRoutes: true,

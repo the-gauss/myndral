@@ -445,6 +445,13 @@ CREATE TABLE user_liked_tracks (
   PRIMARY KEY (user_id, track_id)
 );
 
+CREATE TABLE user_saved_tracks (
+  user_id  UUID        NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
+  track_id UUID        NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+  saved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, track_id)
+);
+
 CREATE TABLE user_saved_albums (
   user_id  UUID        NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
   album_id UUID        NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
@@ -452,10 +459,24 @@ CREATE TABLE user_saved_albums (
   PRIMARY KEY (user_id, album_id)
 );
 
+CREATE TABLE user_liked_albums (
+  user_id  UUID        NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  album_id UUID        NOT NULL REFERENCES albums(id)  ON DELETE CASCADE,
+  liked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, album_id)
+);
+
 CREATE TABLE user_followed_artists (
   user_id     UUID        NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
   artist_id   UUID        NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
   followed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, artist_id)
+);
+
+CREATE TABLE user_liked_artists (
+  user_id   UUID        NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  artist_id UUID        NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+  liked_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, artist_id)
 );
 
@@ -833,9 +854,13 @@ CREATE INDEX idx_track_genres_g    ON track_genres   (genre_id);
 
 -- User library
 CREATE INDEX idx_liked_tracks      ON user_liked_tracks   (user_id, liked_at DESC);
+CREATE INDEX idx_saved_tracks      ON user_saved_tracks   (user_id, saved_at DESC);
 CREATE INDEX idx_saved_albums      ON user_saved_albums   (user_id, saved_at DESC);
+CREATE INDEX idx_liked_albums      ON user_liked_albums   (user_id, liked_at DESC);
 CREATE INDEX idx_followed_art_u    ON user_followed_artists (user_id);
 CREATE INDEX idx_followed_art_a    ON user_followed_artists (artist_id);
+CREATE INDEX idx_liked_artists_u   ON user_liked_artists  (user_id, liked_at DESC);
+CREATE INDEX idx_liked_artists_a   ON user_liked_artists  (artist_id);
 CREATE INDEX idx_followed_users_f  ON user_followed_users (follower_id);
 CREATE INDEX idx_followed_users_e  ON user_followed_users (followee_id);
 

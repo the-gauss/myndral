@@ -1,15 +1,9 @@
-import { Platform } from 'react-native';
 import {
   BRAND_THEMES,
   BRAND_THEME_ORDER,
   DEFAULT_THEME_NAME,
   type BrandThemeName,
 } from '@/src/generated/brandTokens';
-
-const serifFontFamily = Platform.select({
-  ios: 'Times New Roman',
-  default: 'serif',
-});
 
 export type AppThemeName = BrandThemeName;
 export const DEFAULT_THEME = DEFAULT_THEME_NAME;
@@ -62,20 +56,34 @@ export interface AppTheme {
 export function getTheme(themeName: AppThemeName): AppTheme {
   const theme = BRAND_THEMES[themeName];
   const tokens = theme.tokens;
-  const usesSerifBody = themeName === 'paper';
+  const paperOverrides = themeName === 'paper'
+    ? {
+        background: '#f4eadc',
+        backgroundOffset: '#ead7bd',
+        surface: '#f2e5d2',
+        surfaceRaised: '#efe0c8',
+        surfaceBorder: '#d8bea1',
+        fillSoft: '#dfc7a8',
+        fillSubtle: '#f6ede2',
+        glassBg: '#f2e5d2',
+        glassBgHeavy: '#efe0c8',
+        glassBorder: '#d8bea1',
+        sidebarBg: '#efe0c8',
+      }
+    : null;
 
   return {
     name: themeName,
     label: theme.label,
     description: theme.description,
     isDark: themeName === 'dark',
-    usesSerifBody,
+    usesSerifBody: false,
     colors: {
-      background: tokens['color-bg'],
-      backgroundOffset: tokens['color-bg-offset'],
-      surface: tokens['color-surface'],
-      surfaceRaised: tokens['color-surface-raised'],
-      surfaceBorder: tokens['color-surface-border'],
+      background: paperOverrides?.background ?? tokens['color-bg'],
+      backgroundOffset: paperOverrides?.backgroundOffset ?? tokens['color-bg-offset'],
+      surface: paperOverrides?.surface ?? tokens['color-surface'],
+      surfaceRaised: paperOverrides?.surfaceRaised ?? tokens['color-surface-raised'],
+      surfaceBorder: paperOverrides?.surfaceBorder ?? tokens['color-surface-border'],
       text: tokens['color-text'],
       textMuted: tokens['color-text-muted'],
       textSubtle: tokens['color-text-subtle'],
@@ -84,22 +92,19 @@ export function getTheme(themeName: AppThemeName): AppTheme {
       secondary: tokens['color-secondary'],
       cta: tokens['color-cta'],
       ctaText: tokens['color-cta-text'],
-      fillSoft: tokens['color-fill-soft'],
-      fillSubtle: tokens['color-fill-subtle'],
+      fillSoft: paperOverrides?.fillSoft ?? tokens['color-fill-soft'],
+      fillSubtle: paperOverrides?.fillSubtle ?? tokens['color-fill-subtle'],
       success: tokens['color-success'],
       warning: tokens['color-warning'],
       danger: tokens['color-danger'],
       info: tokens['color-info'],
-      glassBg: tokens['glass-bg'],
-      glassBgHeavy: tokens['glass-bg-heavy'],
-      glassBorder: tokens['glass-border'],
-      sidebarBg: tokens['color-sidebar-bg'],
+      glassBg: paperOverrides?.glassBg ?? tokens['glass-bg'],
+      glassBgHeavy: paperOverrides?.glassBgHeavy ?? tokens['glass-bg-heavy'],
+      glassBorder: paperOverrides?.glassBorder ?? tokens['glass-border'],
+      sidebarBg: paperOverrides?.sidebarBg ?? tokens['color-sidebar-bg'],
       sidebarActive: tokens['color-sidebar-item-active'],
       sidebarActiveText: tokens['color-sidebar-item-active-text'],
     },
-    typography: {
-      bodyFontFamily: usesSerifBody ? serifFontFamily : undefined,
-      displayFontFamily: usesSerifBody ? serifFontFamily : undefined,
-    },
+    typography: {},
   };
 }

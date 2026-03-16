@@ -124,8 +124,11 @@ function AnimatedBubble({
 }
 
 function Atmosphere() {
-  const { theme } = useTheme();
+  const { theme, themeName } = useTheme();
   const { width, height } = useWindowDimensions();
+  if (themeName === 'paper') {
+    return null;
+  }
   const primaryX = Math.max(96, width * 0.44);
   const primaryY = Math.max(110, height * 0.5);
   const secondaryX = Math.max(104, width * 0.48);

@@ -1,9 +1,10 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from myndral_api.auth_utils import get_current_user
 from myndral_api.db.session import get_db
 from myndral_api.media_utils import normalize_audio_url, normalize_image_url
 
@@ -215,13 +216,39 @@ LIMIT :limit
 
 
 @router.put("/{artist_id}/follow", summary="Follow an artist")
-async def follow_artist(artist_id: str) -> dict:
-    raise HTTPException(status_code=501, detail="Not implemented")
+async def follow_artist(
+    artist_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    artist = await _fetch_artist(db, artist_id)
+    if artist is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artist not found")
+
+    await db.execute(
+        text(
+            """
+INSERT INTO user_followed_artists (user_id, artist_id)
+VALUES (:user_id, :artist_id)
+ON CONFLICT (user_id, artist_id) DO NOTHING
+"""
+        ),
+        {"user_id": current_user["id"], "artist_id": artist_id},
+    )
+    return {"artistId": artist_id, "inLibrary": True}
 
 
 @router.delete("/{artist_id}/follow", summary="Unfollow an artist")
-async def unfollow_artist(artist_id: str) -> dict:
-    raise HTTPException(status_code=501, detail="Not implemented")
+async def unfollow_artist(
+    artist_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    await db.execute(
+        text("DELETE FROM user_followed_artists WHERE user_id = :user_id AND artist_id = :artist_id"),
+        {"user_id": current_user["id"], "artist_id": artist_id},
+    )
+    return {"artistId": artist_id, "inLibrary": False}
 
 
 async def _fetch_artist(db: AsyncSession, artist_id: str) -> dict[str, Any] | None:

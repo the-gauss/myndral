@@ -20,11 +20,12 @@ import CreateArtistPanel from '../components/CreateArtistPanel'
 import CreateMusicPanel from '../components/CreateMusicPanel'
 import NotificationsBell from '../components/NotificationsBell'
 import StagingPanel from '../components/StagingPanel'
+import UserManagementPanel from '../components/UserManagementPanel'
 import { buildWebAppUrl } from '../lib/crossApp'
 import { useAuthStore } from '../store/authStore'
 import type { StagingNavTarget } from '../components/NotificationsBell'
 
-type Tab = 'artists' | 'albums' | 'create_music' | 'staging' | 'archive'
+type Tab = 'artists' | 'albums' | 'create_music' | 'staging' | 'archive' | 'users'
 
 const TAB_LABELS: Record<Tab, string> = {
   artists: 'Artists',
@@ -32,6 +33,7 @@ const TAB_LABELS: Record<Tab, string> = {
   create_music: 'Songs',
   staging: 'Staging',
   archive: 'Archive',
+  users: 'Users',
 }
 
 export default function Dashboard() {
@@ -39,6 +41,7 @@ export default function Dashboard() {
   const accessToken = useAuthStore((s) => s.accessToken)
   const clearSession = useAuthStore((s) => s.clearSession)
   const webPlayerUrl = buildWebAppUrl({ accessToken })
+  const isAdmin = user?.role === 'admin'
 
   const [tab, setTab] = useState<Tab>('artists')
   // Populated when the user clicks a notification — scrolls the target entity
@@ -57,8 +60,10 @@ export default function Dashboard() {
     if (next !== 'staging') setStagingHighlightTarget(null)
   }
 
+  const tabs = (Object.keys(TAB_LABELS) as Tab[]).filter((candidate) => candidate !== 'users' || isAdmin)
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
 
       {/* ── Top nav ─────────────────────────────────────────────────────── */}
       <header className="glass-toolbar sticky top-0 z-40 mx-3 mt-3 rounded-[30px]">
@@ -66,7 +71,7 @@ export default function Dashboard() {
           <span className="text-sm font-semibold tracking-tight">MyndralAI Studio</span>
 
           <nav className="glass-pill flex gap-1 rounded-full p-1">
-            {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
+            {tabs.map((t) => (
               <button
                 key={t}
                 className={`rounded-full px-4 py-2 text-sm transition-colors
@@ -108,12 +113,13 @@ export default function Dashboard() {
       </header>
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
-      <main className="studio-shell soft-enter mx-auto max-w-7xl px-4 pb-8 pt-6">
+      <main className="studio-shell soft-enter mx-auto w-full max-w-7xl flex-1 overflow-y-auto px-4 pb-8 pt-6">
         {tab === 'artists'      && <CreateArtistPanel />}
         {tab === 'albums'       && <CreateAlbumPanel />}
         {tab === 'create_music' && <CreateMusicPanel />}
         {tab === 'staging'      && <StagingPanel highlightTarget={stagingHighlightTarget} />}
         {tab === 'archive'      && <ArchivePanel />}
+        {tab === 'users'        && isAdmin && <UserManagementPanel />}
       </main>
     </div>
   )

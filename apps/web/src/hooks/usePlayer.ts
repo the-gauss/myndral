@@ -25,6 +25,8 @@ export function usePlayer() {
     togglePlay,
     next: store.next,
     prev: store.prev,
+    addToQueue: store.enqueue,
+    playNext: store.playNext,
     setVolume: store.setVolume,
     setProgress: store.setProgress,
     toggleShuffle: store.toggleShuffle,

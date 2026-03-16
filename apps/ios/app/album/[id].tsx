@@ -1,5 +1,8 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import type { AxiosError } from 'axios';
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { ExportSheet } from '@/src/components/ExportSheet';
 import { GlassSurface } from '@/src/components/GlassSurface';
@@ -9,11 +12,22 @@ import { RemoteArtwork } from '@/src/components/RemoteArtwork';
 import { ScreenView } from '@/src/components/ScreenView';
 import { TrackRow } from '@/src/components/TrackRow';
 import { formatReleaseYear } from '@/src/lib/format';
-import { useAlbum, useAlbumTracks } from '@/src/hooks/useCatalog';
+import { useAlbum, useAlbumTracks, useCollectionState } from '@/src/hooks/useCatalog';
 import { usePlayer } from '@/src/providers/PlayerProvider';
 import { useTheme } from '@/src/providers/ThemeProvider';
+import {
+  favoriteAlbum,
+  removeAlbumFromLibrary,
+  saveAlbumToLibrary,
+  unfavoriteAlbum,
+} from '@/src/services/catalog';
 import { useAuthStore } from '@/src/stores/authStore';
-import { useState } from 'react';
+
+function asErrorMessage(error: unknown, fallback: string) {
+  const axiosError = error as AxiosError<{ detail?: unknown }>;
+  const detail = axiosError?.response?.data?.detail;
+  return typeof detail === 'string' && detail.trim() ? detail.trim() : fallback;
+}
 
 export default function AlbumDetailScreen() {
   const router = useRouter();
@@ -21,11 +35,53 @@ export default function AlbumDetailScreen() {
   const { theme } = useTheme();
   const { playTrack } = usePlayer();
   const isPremium = useAuthStore((state) => state.isPremium);
+  const queryClient = useQueryClient();
   const [exportOpen, setExportOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const album = useAlbum(id ?? '');
   const tracks = useAlbumTracks(id ?? '');
   const details = album.data;
+  const collection = useCollectionState({
+    albumIds: details ? [details.id] : [],
+    trackIds: tracks.data?.items.map((track) => track.id) ?? [],
+  });
+  const isFavorite = Boolean(details && collection.data?.favorites.albumIds.includes(details.id));
+  const isInLibrary = Boolean(details && collection.data?.library.albumIds.includes(details.id));
+  const favoriteTrackIds = new Set(collection.data?.favorites.trackIds ?? []);
+  const libraryTrackIds = new Set(collection.data?.library.trackIds ?? []);
+
+  const favoriteMutation = useMutation({
+    mutationFn: () => {
+      if (!details) throw new Error('Album not loaded');
+      return isFavorite ? unfavoriteAlbum(details.id) : favoriteAlbum(details.id);
+    },
+    onSuccess: () => {
+      setActionError(null);
+      queryClient.invalidateQueries({ queryKey: ['album', id] });
+      queryClient.invalidateQueries({ queryKey: ['favorite-albums'] });
+      queryClient.invalidateQueries({ queryKey: ['collection-state'] });
+    },
+    onError: (error) => {
+      setActionError(asErrorMessage(error, 'Could not update album favorites.'));
+    },
+  });
+
+  const libraryMutation = useMutation({
+    mutationFn: () => {
+      if (!details) throw new Error('Album not loaded');
+      return isInLibrary ? removeAlbumFromLibrary(details.id) : saveAlbumToLibrary(details.id);
+    },
+    onSuccess: () => {
+      setActionError(null);
+      queryClient.invalidateQueries({ queryKey: ['album', id] });
+      queryClient.invalidateQueries({ queryKey: ['library-albums'] });
+      queryClient.invalidateQueries({ queryKey: ['collection-state'] });
+    },
+    onError: (error) => {
+      setActionError(asErrorMessage(error, 'Could not update your library.'));
+    },
+  });
 
   return (
     <ScreenView>
@@ -82,6 +138,25 @@ export default function AlbumDetailScreen() {
                 />
               ) : null}
             </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <PrimaryButton
+                label={isInLibrary ? 'Saved' : 'Add to Library'}
+                onPress={() => libraryMutation.mutate()}
+                variant="secondary"
+                style={{ flex: 1 }}
+              />
+              <PrimaryButton
+                label={isFavorite ? 'Favorited' : 'Favorite'}
+                onPress={() => favoriteMutation.mutate()}
+                variant="secondary"
+                style={{ flex: 1 }}
+              />
+            </View>
+
+            {actionError ? (
+              <Text style={{ color: theme.colors.danger, fontSize: 14 }}>{actionError}</Text>
+            ) : null}
           </GlassSurface>
 
           <View style={{ gap: 10 }}>
@@ -89,7 +164,14 @@ export default function AlbumDetailScreen() {
               <LoadingView label="Loading tracks..." />
             ) : (
               tracks.data?.items.map((track, index) => (
-                <TrackRow key={track.id} track={track} index={index + 1} queue={tracks.data?.items} />
+                <TrackRow
+                  key={track.id}
+                  track={track}
+                  index={index + 1}
+                  queue={tracks.data?.items}
+                  isFavorite={favoriteTrackIds.has(track.id)}
+                  isInLibrary={libraryTrackIds.has(track.id)}
+                />
               ))
             )}
           </View>

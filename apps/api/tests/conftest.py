@@ -5,7 +5,7 @@ os.environ.setdefault("ENVIRONMENT", "testing")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://myndral:testpass@localhost:5432/myndral_test",
+    "postgresql+asyncpg://myndral:myndral@localhost:5432/myndral",
 )
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "30")

@@ -1,5 +1,7 @@
-import { Music } from 'lucide-react'
+import { Music, Plus } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import PlaylistModal from '../components/ui/PlaylistModal'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
 import { usePlaylists } from '../hooks/useCatalog'
@@ -7,10 +9,25 @@ import { resolveMediaUrl } from '../lib/media'
 
 export default function Playlists() {
   const { data, isLoading } = usePlaylists(36)
+  const [playlistModalOpen, setPlaylistModalOpen] = useState(false)
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">Playlists</h1>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Playlists</h1>
+          <p className="mt-2 text-sm text-muted-fg">
+            Browse public mixes, then create a public or private playlist of your own.
+          </p>
+        </div>
+        <button
+          onClick={() => setPlaylistModalOpen(true)}
+          className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg"
+        >
+          <Plus size={15} />
+          New playlist
+        </button>
+      </div>
 
       {isLoading ? (
         <div className="space-y-2">
@@ -28,6 +45,7 @@ export default function Playlists() {
         <ul className="space-y-1">
           {data.items.map((playlist) => {
             const coverUrl = resolveMediaUrl(playlist.coverUrl)
+            const trackCount = playlist.trackCount ?? playlist.tracks.length
 
             return (
               <li key={playlist.id}>
@@ -51,7 +69,7 @@ export default function Playlists() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{playlist.name}</p>
                     <p className="text-xs text-muted-fg">
-                      {playlist.tracks.length} {playlist.tracks.length === 1 ? 'song' : 'songs'}
+                      {trackCount} {trackCount === 1 ? 'song' : 'songs'}
                       {playlist.isAiCurated ? ' · AI Curated' : ''}
                     </p>
                   </div>
@@ -63,6 +81,12 @@ export default function Playlists() {
       ) : (
         <EmptyState message="No playlists found." />
       )}
+
+      <PlaylistModal
+        open={playlistModalOpen}
+        onClose={() => setPlaylistModalOpen(false)}
+        heading="Create a new playlist"
+      />
     </div>
   )
 }

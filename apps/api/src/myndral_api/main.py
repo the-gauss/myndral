@@ -13,6 +13,7 @@ from myndral_api.routers import (
     exports,
     health,
     internal,
+    internal_users,
     notifications,
     playlists,
     search,
@@ -49,6 +50,7 @@ app.include_router(health.router)
 app.include_router(auth.router,          prefix="/v1/auth",          tags=["auth"])
 app.include_router(users.router,         prefix="/v1/users",         tags=["users"])
 app.include_router(internal.router,      prefix="/v1/internal",      tags=["internal"])
+app.include_router(internal_users.router, prefix="/v1/internal",     tags=["internal-users"])
 app.include_router(staging.router,       prefix="/v1/internal",      tags=["staging"])
 app.include_router(notifications.router, prefix="/v1/internal",      tags=["notifications"])
 app.include_router(artists.router,       prefix="/v1/artists",       tags=["artists"])

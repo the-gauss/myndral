@@ -6,7 +6,7 @@ import ArtistCard from '../components/cards/ArtistCard'
 import TrackRow from '../components/cards/TrackRow'
 import SectionHeader from '../components/ui/SectionHeader'
 import Skeleton from '../components/ui/Skeleton'
-import { useSearch } from '../hooks/useCatalog'
+import { useCollectionState, useSearch } from '../hooks/useCatalog'
 
 function useDebounce(value: string, delay = 300) {
   const [debounced, setDebounced] = useState(value)
@@ -21,6 +21,10 @@ export default function Search() {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounce(query)
   const { data, isLoading } = useSearch(debouncedQuery)
+  const searchTrackIds = data?.tracks.items.map((track) => track.id) ?? []
+  const searchCollection = useCollectionState({ trackIds: searchTrackIds })
+  const favoriteTrackIds = new Set(searchCollection.data?.favorites.trackIds ?? [])
+  const libraryTrackIds = new Set(searchCollection.data?.library.trackIds ?? [])
 
   const hasResults = data && (
     data.tracks.items.length > 0 ||
@@ -72,6 +76,8 @@ export default function Search() {
                     index={i + 1}
                     queue={data.tracks.items}
                     showAlbum
+                    isFavorite={favoriteTrackIds.has(track.id)}
+                    isInLibrary={libraryTrackIds.has(track.id)}
                   />
                 ))}
               </section>

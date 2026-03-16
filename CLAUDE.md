@@ -1,0 +1,9 @@
+- Only create/merge PRs when explicitly asked to do so.
+- Never mentioned "Co-authored by Claude" or any references to Claude in commit/PR messages.
+- Always design systems like a senior engineer, avoiding shallow practices and entry-level mistakes.
+- Code should be production-grade, not prototyping style. It should be well documented with meaningful comments without causing clutter.
+- Always stick to the existing tech stack used in the repo, unless explicitly asked to deviate.
+- Any major architectural decision, system design change, or important interview-worthy concept introduced, any major bugs fixed or intermediate errors solved while writing code should be logged in `docs/decisions-log.md` such that this files incrementally emerges as a collection of winning STAR format interview stories gradually. Remember, this is not the place for just EVERY change - only senior interview-worthy concepts go here.
+- New branch naming examples: `<scope>/<feature-name>`, `integrations/paypal`, `api/new-generation-service`, etc.
+- Always make sure no other parts of the codebase broke while completing current request.
+- Always test your code after finishing a request.

@@ -1,5 +1,7 @@
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { SymbolView } from 'expo-symbols';
 import { Redirect, Tabs } from 'expo-router';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/src/providers/ThemeProvider';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -31,14 +33,33 @@ export default function TabLayout() {
           height: 64 + insets.bottom,
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 10),
-          backgroundColor: theme.colors.glassBg,
+          backgroundColor: 'transparent',
           borderTopWidth: 1,
           borderTopColor: theme.colors.glassBorder,
           shadowColor: theme.isDark ? theme.colors.secondary : theme.colors.primary,
           shadowOpacity: theme.isDark ? 0.12 : 0.06,
           shadowRadius: 24,
           shadowOffset: { width: 0, height: -10 },
+          overflow: 'hidden',
         },
+        tabBarBackground: () =>
+          Platform.OS === 'ios' && isLiquidGlassAvailable() ? (
+            <GlassView
+              style={StyleSheet.absoluteFill}
+              glassEffectStyle="clear"
+              tintColor={theme.colors.glassBgHeavy}
+              colorScheme={theme.isDark ? 'dark' : 'light'}
+            />
+          ) : (
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  backgroundColor: theme.colors.glassBgHeavy,
+                },
+              ]}
+            />
+          ),
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textSubtle,
         tabBarLabelStyle: {

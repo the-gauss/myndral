@@ -5,6 +5,7 @@ import TrackRow from '../components/cards/TrackRow'
 import ExportModal from '../components/ui/ExportModal'
 import Skeleton from '../components/ui/Skeleton'
 import { useAlbum, useAlbumTracks } from '../hooks/useCatalog'
+import { resolveMediaUrl } from '../lib/media'
 import { usePlayerStore } from '../store/playerStore'
 import { useUserStore } from '../store/userStore'
 
@@ -16,6 +17,7 @@ export default function Album() {
   const isPremium = useUserStore((s) => s.isPremium)
   const isAuthenticated = useUserStore((s) => s.isAuthenticated)
   const [exportOpen, setExportOpen] = useState(false)
+  const coverUrl = resolveMediaUrl(album?.coverUrl)
 
   function playAlbum() {
     if (tracks?.items.length) play(tracks.items[0], tracks.items)
@@ -28,8 +30,8 @@ export default function Album() {
         <div className="w-44 h-44 rounded bg-border shadow-lg shrink-0 overflow-hidden">
           {albumLoading
             ? <Skeleton className="w-full h-full rounded" />
-            : album?.coverUrl
-              ? <img src={album.coverUrl} alt={album.title} className="w-full h-full object-cover" />
+            : coverUrl
+              ? <img src={coverUrl} alt={album?.title ?? 'Album cover'} className="w-full h-full object-cover" />
               : <div className="w-full h-full bg-border" />
           }
         </div>

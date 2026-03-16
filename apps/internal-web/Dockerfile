@@ -8,7 +8,9 @@ RUN npm ci --prefer-offline
 
 COPY apps/internal-web/ .
 ARG VITE_API_URL
+ARG VITE_WEB_URL
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_WEB_URL=${VITE_WEB_URL}
 RUN npm run build
 
 

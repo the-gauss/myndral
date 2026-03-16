@@ -1,6 +1,7 @@
 import { Play } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Album } from '../../types'
+import { resolveMediaUrl } from '../../lib/media'
 import Skeleton from '../ui/Skeleton'
 
 interface Props {
@@ -19,12 +20,14 @@ export function AlbumCardSkeleton() {
 }
 
 export default function AlbumCard({ album, onPlay }: Props) {
+  const coverUrl = resolveMediaUrl(album.coverUrl)
+
   return (
     <div className="group flex flex-col gap-3 p-3 rounded-lg bg-surface hover:bg-border/40 transition-colors">
       <div className="relative aspect-square w-full overflow-hidden rounded">
-        {album.coverUrl ? (
+        {coverUrl ? (
           <img
-            src={album.coverUrl}
+            src={coverUrl}
             alt={album.title}
             className="w-full h-full object-cover"
             loading="lazy"

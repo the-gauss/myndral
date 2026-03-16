@@ -1,6 +1,8 @@
 import type { AxiosError } from 'axios'
-import { KeyRound, LockKeyhole, Mail, UserRound } from 'lucide-react'
+import { ExternalLink, KeyRound, LockKeyhole, Mail, UserRound } from 'lucide-react'
 import { FormEvent, useState } from 'react'
+import { buildWebAppUrl } from '../lib/crossApp'
+import type { StudioRegisterMode } from '../lib/sessionHandoff'
 import { studioRegister, studioClaim } from '../services/internal'
 import { useAuthStore } from '../store/authStore'
 
@@ -10,8 +12,6 @@ import { useAuthStore } from '../store/authStore'
 //   existing — verify existing credentials and upgrade role via access token
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Mode = 'new' | 'existing'
-
 function apiError(error: unknown): string {
   const e = error as AxiosError<{ detail?: string }>
   if (e.code === 'ERR_NETWORK') return 'Cannot reach backend API.'
@@ -19,14 +19,21 @@ function apiError(error: unknown): string {
 }
 
 interface Props {
+  initialMode?: StudioRegisterMode
+  initialIdentifier?: string
   onBack: () => void
 }
 
-export default function StudioRegister({ onBack }: Props) {
+export default function StudioRegister({
+  initialMode = 'new',
+  initialIdentifier = '',
+  onBack,
+}: Props) {
   const setSession = useAuthStore((s) => s.setSession)
+  const webPlayerUrl = buildWebAppUrl()
 
-  const [mode, setMode]             = useState<Mode>('new')
-  const [username, setUsername]     = useState('')
+  const [mode, setMode]             = useState<StudioRegisterMode>(initialMode)
+  const [username, setUsername]     = useState(initialIdentifier)
   const [email, setEmail]           = useState('')
   const [password, setPassword]     = useState('')
   const [confirm, setConfirm]       = useState('')
@@ -34,7 +41,7 @@ export default function StudioRegister({ onBack }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState<string | null>(null)
 
-  function switchMode(m: Mode) {
+  function switchMode(m: StudioRegisterMode) {
     setMode(m)
     setError(null)
     setUsername('')
@@ -70,6 +77,13 @@ export default function StudioRegister({ onBack }: Props) {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+      <a
+        href={webPlayerUrl}
+        className="absolute right-6 top-6 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-fg transition hover:text-foreground"
+      >
+        <ExternalLink size={14} />
+        Web Player
+      </a>
       <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 shadow-2xl shadow-black/30">
         <p className="text-xs uppercase tracking-[0.22em] text-muted-fg">Myndral Studio</p>
         <h1 className="text-3xl font-bold mt-2">Claim Studio Access</h1>

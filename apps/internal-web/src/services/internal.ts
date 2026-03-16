@@ -23,6 +23,21 @@ export const internalLogin = (payload: { username: string; password: string }) =
 export const getInternalMe = () =>
   api.get<InternalUser>('/v1/internal/auth/me').then((r) => r.data)
 
+// Register a brand-new account with a studio access token.
+export const studioRegister = (payload: {
+  username: string
+  email: string
+  password: string
+  studio_access_token: string
+}) => api.post<LoginResponse>('/v1/auth/studio-register', payload).then((r) => r.data)
+
+// Upgrade an existing listener account using a studio access token.
+export const studioClaim = (payload: {
+  username: string
+  password: string
+  studio_access_token: string
+}) => api.post<LoginResponse>('/v1/auth/studio-claim', payload).then((r) => r.data)
+
 export const listGenres = () =>
   api.get<Genre[]>('/v1/internal/genres').then((r) => r.data)
 

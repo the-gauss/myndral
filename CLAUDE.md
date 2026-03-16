@@ -1,4 +1,4 @@
-- Only create/merge PRs when explicitly asked to do so.
+- Only create/merge PRs when explicitly asked to do so. Never deploy directly, always put latest changes to `staging` branch, and never main.
 - Never mentioned "Co-authored by Claude" or any references to Claude in commit/PR messages.
 - Always design systems like a senior engineer, avoiding shallow practices and entry-level mistakes.
 - Code should be production-grade, not prototyping style. It should be well documented with meaningful comments without causing clutter.

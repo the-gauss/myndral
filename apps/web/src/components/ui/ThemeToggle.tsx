@@ -36,7 +36,6 @@ export default function ThemeToggle() {
   const { theme, setTheme } = useTheme()
   const isPremium = useUserStore((s) => s.isPremium)
   const [open, setOpen] = useState(false)
-  const [minkowskiHinted, setMinkowskiHinted] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const Icon = icons[theme]
 
@@ -45,21 +44,11 @@ export default function ThemeToggle() {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
-        setMinkowskiHinted(false)
       }
     }
     if (open) document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
-
-  function handleMinkowskiClick() {
-    if (isPremium) {
-      setTheme('paper')
-      setOpen(false)
-    } else {
-      setMinkowskiHinted(h => !h)
-    }
-  }
 
   return (
     <div ref={ref} className="relative">
@@ -97,47 +86,34 @@ export default function ThemeToggle() {
           {/* Divider before premium */}
           <div className="mx-3 border-t border-border/60" />
 
-          {/* Minkowski — always visible, locked for free users */}
+          {/* Minkowski — always visible, locked for non-premium users */}
           <button
-            onClick={handleMinkowskiClick}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors group
+            onClick={isPremium ? () => { setTheme('paper'); setOpen(false) } : undefined}
+            disabled={!isPremium}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors
               ${isPremium && theme === 'paper'
                 ? 'text-accent bg-accent/10 font-medium'
                 : isPremium
                   ? 'text-foreground hover:bg-border/40'
-                  : 'hover:bg-[rgba(196,149,106,0.08)]'
+                  : 'opacity-60 cursor-not-allowed'
               }`}
           >
             {isPremium
               ? <Scroll size={14} className="shrink-0" />
-              : <Lock size={14} className="shrink-0 text-[#c4956a] group-hover:text-[#8c3d2e] transition-colors" />
+              : <Lock size={14} className="shrink-0 text-[#c4956a]" />
             }
-            <span className={isPremium ? '' : 'text-[#7a5c42] group-hover:text-[#3d2b1a] transition-colors font-medium'}>
+            <span className={isPremium ? '' : 'text-[#7a5c42] font-medium'}>
               Minkowski
             </span>
             {isPremium
               ? (theme === 'paper' ? null : <MinkowskiSwatches />)
-              : <MinkowskiSwatches />
+              : (
+                <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#c4956a' }}>
+                  Premium
+                </span>
+              )
             }
           </button>
-
-          {/* Inline upgrade nudge — revealed on click for free users */}
-          {!isPremium && minkowskiHinted && (
-            <div
-              className="mx-2 mb-2 px-3 py-2.5 rounded text-[11px] leading-relaxed"
-              style={{
-                background: 'linear-gradient(135deg, rgba(253,245,236,0.15) 0%, rgba(196,149,106,0.12) 100%)',
-                border: '1px solid rgba(196,149,106,0.25)',
-                color: '#a88c70',
-              }}
-            >
-              <p className="font-medium mb-0.5" style={{ color: '#7a5c42' }}>
-                A world of warm light.
-              </p>
-              Ivory, parchment & burgundy.
-              Exclusive to Premium.
-            </div>
-          )}
 
         </div>
       )}

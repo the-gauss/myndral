@@ -5,6 +5,25 @@ Each entry follows STAR format (Situation → Task → Action → Result).
 
 ---
 
+## 2026-03-16 — iOS Client First Draft: Shared Brand Sync + Web-Parity API Surface
+
+**Situation:** The repo had a production web client and API, but no iOS app. The new client needed to match the currently working web listener experience without changing existing backend or web code, and brand-sensitive presentation had to stay centralized in `shared/brand`.
+
+**Task:** Introduce a new iOS app that is functionally aligned with the web app, consumes the same API contract, and minimizes brand drift by treating `shared/brand` as the source of truth for listener-facing theme values.
+
+**Action:**
+1. **Isolated Expo/React Native app under `apps/ios`** — kept all implementation inside the new app so existing `apps/api`, `apps/web`, and other repo surfaces remained untouched. This made the platform expansion additive rather than risky to the current product.
+
+2. **API-parity service layer** — mirrored the web client's auth, catalog, search, playlist, and export endpoints in dedicated iOS service modules so the mobile app tracks the backend contract the same way the web app does. The app uses the same production API host and local-dev conventions.
+
+3. **Brand token sync from `shared/brand`** — added a generation step that parses `shared/brand/theme.ts` and `shared/brand/tokens.css` into native-consumable theme tokens. App runtime theming flows through the generated file, while Expo config reads the same shared brand source for shell-level colors such as splash/adaptive backgrounds.
+
+4. **Native-first interaction model** — translated the web feature set into iOS patterns: tab navigation, stack detail screens, a mini player plus full player, secure local auth storage, and share-sheet based export flows. This preserved product parity while respecting Apple UI expectations.
+
+**Result:** The repo now has a first-draft iOS client that is API-compatible with the current web product, keeps brand-driven styling centralized, and can evolve without entangling existing platforms. Validation passed through TypeScript checks, Expo iOS bundling, and native prebuild/CocoaPods setup; the only remaining host-side blocker was the machine missing Apple's simulator platform package for final Xcode compilation.
+
+---
+
 ## 2026-03-15 — Polymorphic Staging Pipeline: Full Content Flow (Artist → Album → Track → Player)
 
 **Situation:** Tracks approved in staging never appeared in the user-facing player. Two root causes: (1) public catalog APIs filter on `artists.status='published' AND albums.status='published'` — approving a track in isolation left the parent album/artist unpublished, making the track invisible. (2) Staging only supported tracks; artists and albums had no review lifecycle, making the hierarchy incomplete.

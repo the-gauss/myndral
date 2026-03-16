@@ -1,0 +1,94 @@
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Pressable, Text, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { GlassSurface } from '@/src/components/GlassSurface';
+import { LoadingView } from '@/src/components/LoadingView';
+import { PrimaryButton } from '@/src/components/PrimaryButton';
+import { RemoteArtwork } from '@/src/components/RemoteArtwork';
+import { ScreenView } from '@/src/components/ScreenView';
+import { TrackRow } from '@/src/components/TrackRow';
+import { usePlaylist } from '@/src/hooks/useCatalog';
+import { usePlayer } from '@/src/providers/PlayerProvider';
+import { useTheme } from '@/src/providers/ThemeProvider';
+
+export default function PlaylistDetailScreen() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { theme } = useTheme();
+  const { playTrack } = usePlayer();
+  const playlist = usePlaylist(id ?? '');
+  const details = playlist.data;
+
+  return (
+    <ScreenView>
+      <Pressable
+        onPress={() => router.back()}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}
+      >
+        <SymbolView name="chevron.left" size={14} tintColor={theme.colors.textMuted} />
+        <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>Back</Text>
+      </Pressable>
+
+      {playlist.isLoading ? (
+        <LoadingView label="Loading playlist..." />
+      ) : details ? (
+        <>
+          <GlassSurface style={{ padding: 18, gap: 18 }}>
+            <RemoteArtwork uri={details.coverUrl} style={{ width: '100%', aspectRatio: 1 }} placeholderSymbol="music.note.list" />
+            <View style={{ gap: 6 }}>
+              <Text style={{ color: theme.colors.textSubtle, fontSize: 12, fontWeight: '700' }}>
+                {details.isAiCurated ? 'AI CURATED PLAYLIST' : 'PLAYLIST'}
+              </Text>
+              <Text
+                style={{
+                  color: theme.colors.text,
+                  fontSize: 32,
+                  fontWeight: '800',
+                  fontFamily: theme.typography.displayFontFamily,
+                }}
+              >
+                {details.name}
+              </Text>
+              {details.description ? (
+                <Text
+                  style={{
+                    color: theme.colors.textMuted,
+                    fontSize: 14,
+                    lineHeight: 20,
+                    fontFamily: theme.typography.bodyFontFamily,
+                  }}
+                >
+                  {details.description}
+                </Text>
+              ) : null}
+              <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>
+                {details.tracks.length} {details.tracks.length === 1 ? 'song' : 'songs'}
+              </Text>
+            </View>
+
+            {details.tracks.length ? (
+              <PrimaryButton
+                label="Play Playlist"
+                onPress={() => playTrack(details.tracks[0], details.tracks)}
+              />
+            ) : null}
+          </GlassSurface>
+
+          {details.tracks.length ? (
+            <View style={{ gap: 10 }}>
+              {details.tracks.map((track, index) => (
+                <TrackRow key={track.id} track={track} index={index + 1} queue={details.tracks} showAlbum />
+              ))}
+            </View>
+          ) : (
+            <GlassSurface style={{ padding: 18 }}>
+              <Text style={{ color: theme.colors.textMuted, fontSize: 14 }}>
+                This playlist does not have any published tracks yet.
+              </Text>
+            </GlassSurface>
+          )}
+        </>
+      ) : null}
+    </ScreenView>
+  );
+}

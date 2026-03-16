@@ -1,4 +1,4 @@
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { BlurView } from 'expo-blur';
 import { SymbolView } from 'expo-symbols';
 import { Redirect, Tabs } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -43,12 +43,11 @@ export default function TabLayout() {
           overflow: 'hidden',
         },
         tabBarBackground: () =>
-          Platform.OS === 'ios' && isLiquidGlassAvailable() ? (
-            <GlassView
+          Platform.OS === 'ios' ? (
+            <BlurView
               style={StyleSheet.absoluteFill}
-              glassEffectStyle="clear"
-              tintColor={theme.colors.glassBgHeavy}
-              colorScheme={theme.isDark ? 'dark' : 'light'}
+              intensity={82}
+              tint={theme.isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'}
             />
           ) : (
             <View

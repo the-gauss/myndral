@@ -12,7 +12,9 @@ RUN npm ci --prefer-offline
 # compiled JS bundle knows where to reach the API.
 COPY apps/web/ .
 ARG VITE_API_URL
+ARG VITE_STUDIO_URL
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_STUDIO_URL=${VITE_STUDIO_URL}
 RUN npm run build
 
 

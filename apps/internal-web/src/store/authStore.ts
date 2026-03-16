@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { INTERNAL_ACCESS_TOKEN_KEY } from '../services/api'
+import { getInitialStudioAccessToken } from '../lib/sessionHandoff'
 import type { InternalUser } from '../types'
 
 interface AuthStore {
@@ -10,10 +11,12 @@ interface AuthStore {
   clearSession: () => void
 }
 
+const initialAccessToken = getInitialStudioAccessToken()
+
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
-  accessToken: localStorage.getItem(INTERNAL_ACCESS_TOKEN_KEY),
-  isAuthenticated: Boolean(localStorage.getItem(INTERNAL_ACCESS_TOKEN_KEY)),
+  accessToken: initialAccessToken,
+  isAuthenticated: Boolean(initialAccessToken),
 
   setSession: (user, token) => {
     localStorage.setItem(INTERNAL_ACCESS_TOKEN_KEY, token)

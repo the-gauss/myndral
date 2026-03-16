@@ -13,12 +13,14 @@
  *   archive     → ArchivePanel       (rejected items with restore capability)
  */
 import { useState } from 'react'
+import { ExternalLink } from 'lucide-react'
 import ArchivePanel from '../components/ArchivePanel'
 import CreateAlbumPanel from '../components/CreateAlbumPanel'
 import CreateArtistPanel from '../components/CreateArtistPanel'
 import CreateMusicPanel from '../components/CreateMusicPanel'
 import NotificationsBell from '../components/NotificationsBell'
 import StagingPanel from '../components/StagingPanel'
+import { buildWebAppUrl } from '../lib/crossApp'
 import { useAuthStore } from '../store/authStore'
 import type { StagingNavTarget } from '../components/NotificationsBell'
 
@@ -34,7 +36,9 @@ const TAB_LABELS: Record<Tab, string> = {
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user)
+  const accessToken = useAuthStore((s) => s.accessToken)
   const clearSession = useAuthStore((s) => s.clearSession)
+  const webPlayerUrl = buildWebAppUrl({ accessToken })
 
   const [tab, setTab] = useState<Tab>('artists')
   // Populated when the user clicks a notification — scrolls the target entity
@@ -77,6 +81,13 @@ export default function Dashboard() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <a
+              href={webPlayerUrl}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-fg transition hover:bg-surface hover:text-foreground"
+            >
+              <ExternalLink size={14} />
+              Web Player
+            </a>
             <NotificationsBell onNavigateToStaging={navigateToStaging} />
             <div className="flex items-center gap-2">
               <span className="hidden text-xs text-muted-fg sm:block">

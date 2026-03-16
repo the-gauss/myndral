@@ -95,12 +95,9 @@ function LatestReviewCell({ review }: { review: { action: StagingReviewAction; n
 // ── Action buttons (shared across entity types) ───────────────────────────────
 
 function ActionButtons({
-  entityType, entityId,
   canAct, isPending, hasAudio,
   onApprove, onOpenNotes, onPreview,
 }: {
-  entityType: EntityType
-  entityId: string
   canAct: boolean
   isPending: boolean
   hasAudio: boolean
@@ -289,11 +286,14 @@ export default function StagingPanel({
     const args = { id: entityId, notes: notesText.trim() }
 
     if (entityType === 'artist') {
-      intent === 'reject' ? rejectArtistMutation.mutate(args) : revisionArtistMutation.mutate(args)
+      if (intent === 'reject') rejectArtistMutation.mutate(args)
+      else revisionArtistMutation.mutate(args)
     } else if (entityType === 'album') {
-      intent === 'reject' ? rejectAlbumMutation.mutate(args) : revisionAlbumMutation.mutate(args)
+      if (intent === 'reject') rejectAlbumMutation.mutate(args)
+      else revisionAlbumMutation.mutate(args)
     } else {
-      intent === 'reject' ? rejectTrackMutation.mutate(args) : revisionTrackMutation.mutate(args)
+      if (intent === 'reject') rejectTrackMutation.mutate(args)
+      else revisionTrackMutation.mutate(args)
     }
   }
 
@@ -381,8 +381,6 @@ export default function StagingPanel({
                       <td className="px-3 py-2 text-xs text-muted-fg tabular-nums">{formatDate(artist.createdAt)}</td>
                       <td className="px-3 py-2">
                         <ActionButtons
-                          entityType="artist"
-                          entityId={artist.id}
                           canAct={isReviewer}
                           isPending={approveArtistMutation.isPending}
                           hasAudio={false}
@@ -447,8 +445,6 @@ export default function StagingPanel({
                       <td className="px-3 py-2 text-xs text-muted-fg tabular-nums">{formatDate(album.createdAt)}</td>
                       <td className="px-3 py-2">
                         <ActionButtons
-                          entityType="album"
-                          entityId={album.id}
                           canAct={isReviewer}
                           isPending={approveAlbumMutation.isPending}
                           hasAudio={false}
@@ -515,8 +511,6 @@ export default function StagingPanel({
                       <td className="px-3 py-2 text-xs text-muted-fg tabular-nums">{formatDate(track.createdAt)}</td>
                       <td className="px-3 py-2">
                         <ActionButtons
-                          entityType="track"
-                          entityId={track.id}
                           canAct={isReviewer}
                           isPending={approveTrackMutation.isPending}
                           hasAudio={!!track.outputStorageUrl}

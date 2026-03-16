@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import StudioRegister from './pages/StudioRegister'
+import { initialStudioEntry } from './lib/sessionHandoff'
 import { getInternalMe } from './services/internal'
 import { useAuthStore } from './store/authStore'
 
@@ -16,7 +17,9 @@ export default function App() {
   const clearSession = useAuthStore((s) => s.clearSession)
 
   const [checked, setChecked] = useState(false)
-  const [view, setView] = useState<View>('login')
+  const [view, setView] = useState<View>(initialStudioEntry.view)
+  const [registerMode, setRegisterMode] = useState(initialStudioEntry.mode)
+  const [registerIdentifier, setRegisterIdentifier] = useState(initialStudioEntry.identifier)
 
   useEffect(() => {
     let cancelled = false
@@ -57,8 +60,26 @@ export default function App() {
   if (isAuthenticated) return <Dashboard />
 
   if (view === 'register') {
-    return <StudioRegister onBack={() => setView('login')} />
+    return (
+      <StudioRegister
+        initialMode={registerMode}
+        initialIdentifier={registerIdentifier}
+        onBack={() => {
+          setView('login')
+          setRegisterMode('new')
+          setRegisterIdentifier('')
+        }}
+      />
+    )
   }
 
-  return <Login onRegister={() => setView('register')} />
+  return (
+    <Login
+      onRegister={() => {
+        setRegisterMode('new')
+        setRegisterIdentifier('')
+        setView('register')
+      }}
+    />
+  )
 }

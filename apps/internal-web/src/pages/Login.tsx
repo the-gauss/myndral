@@ -1,6 +1,7 @@
 import type { AxiosError } from 'axios'
-import { LockKeyhole, UserRound } from 'lucide-react'
+import { ExternalLink, LockKeyhole, UserRound } from 'lucide-react'
 import { FormEvent, useState } from 'react'
+import { buildWebAppUrl } from '../lib/crossApp'
 import { internalLogin } from '../services/internal'
 import { useAuthStore } from '../store/authStore'
 
@@ -18,6 +19,7 @@ interface Props {
 
 export default function Login({ onRegister }: Props) {
   const setSession = useAuthStore((s) => s.setSession)
+  const webPlayerUrl = buildWebAppUrl()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -41,6 +43,13 @@ export default function Login({ onRegister }: Props) {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+      <a
+        href={webPlayerUrl}
+        className="absolute right-6 top-6 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-fg transition hover:text-foreground"
+      >
+        <ExternalLink size={14} />
+        Web Player
+      </a>
       <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 shadow-2xl shadow-black/30">
         <p className="text-xs uppercase tracking-[0.22em] text-muted-fg">Myndral Studio</p>
         <h1 className="text-3xl font-bold mt-2">Employee Sign In</h1>

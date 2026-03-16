@@ -29,7 +29,7 @@ export default function TopBar() {
   }
 
   return (
-    <header className="glass-panel mx-4 mt-4 flex shrink-0 items-center justify-between rounded-[28px] px-6 py-3">
+    <header className="glass-toolbar mx-4 mt-4 flex shrink-0 items-center justify-between rounded-[28px] px-6 py-3">
       {/* History navigation */}
       <div className="flex items-center gap-1">
         <button

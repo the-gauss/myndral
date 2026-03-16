@@ -41,11 +41,11 @@ export function GlassSurface({
       borderWidth: 1,
       borderColor: theme.colors.glassBorder,
       backgroundColor:
-        styleVariant === 'clear' ? theme.colors.glassBg : theme.colors.surfaceRaised,
-      shadowColor: theme.isDark ? theme.colors.primary : theme.colors.secondary,
-      shadowOpacity: theme.isDark ? 0.18 : 0.1,
-      shadowRadius: 28,
-      shadowOffset: { width: 0, height: 16 },
+        styleVariant === 'clear' ? theme.colors.glassBg : theme.colors.glassBgHeavy,
+      shadowColor: theme.isDark ? theme.colors.secondary : theme.colors.primary,
+      shadowOpacity: theme.isDark ? 0.14 : 0.1,
+      shadowRadius: 30,
+      shadowOffset: { width: 0, height: 18 },
     },
     style,
   ];
@@ -61,7 +61,7 @@ export function GlassSurface({
           {...rest}
           style={sharedStyle}
           glassEffectStyle={styleVariant}
-          tintColor={styleVariant === 'clear' ? theme.colors.glassBg : theme.colors.surfaceRaised}
+          tintColor={styleVariant === 'clear' ? theme.colors.glassBg : theme.colors.glassBgHeavy}
           colorScheme={theme.isDark ? 'dark' : 'light'}
         >
           {children}

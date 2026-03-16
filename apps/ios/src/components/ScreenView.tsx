@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
+import { useEffect, useRef } from 'react';
 import {
+  Animated,
+  Easing,
   ScrollView,
   View,
   type ScrollViewProps,
@@ -17,6 +20,108 @@ interface ScreenViewProps extends ScrollViewProps {
   bottomInset?: number;
 }
 
+interface AnimatedBubbleProps {
+  color: string;
+  opacity: number;
+  size: number;
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+  xRange: [number, number, number];
+  yRange: [number, number, number];
+  scaleRange: [number, number, number];
+  duration: number;
+}
+
+function AnimatedBubble({
+  color,
+  opacity,
+  size,
+  top,
+  right,
+  bottom,
+  left,
+  xRange,
+  yRange,
+  scaleRange,
+  duration,
+}: AnimatedBubbleProps) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(progress, {
+          toValue: 1,
+          duration,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(progress, {
+          toValue: 0,
+          duration: duration + 1800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [duration, progress]);
+
+  const translateX = progress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: xRange,
+  });
+  const translateY = progress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: yRange,
+  });
+  const scale = progress.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: scaleRange,
+  });
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        top,
+        right,
+        bottom,
+        left,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: color,
+        opacity,
+        shadowColor: color,
+        shadowOpacity: opacity * 0.75,
+        shadowRadius: size * 0.18,
+        shadowOffset: { width: 0, height: 0 },
+        transform: [{ translateX }, { translateY }, { scale }],
+      }}
+    >
+      <View
+        style={{
+          position: 'absolute',
+          top: size * 0.12,
+          left: size * 0.16,
+          width: size * 0.26,
+          height: size * 0.26,
+          borderRadius: size * 0.13,
+          backgroundColor: 'rgba(255,255,255,0.16)',
+        }}
+      />
+    </Animated.View>
+  );
+}
+
 function Atmosphere() {
   const { theme } = useTheme();
 
@@ -28,40 +133,38 @@ function Atmosphere() {
         inset: 0,
       }}
     >
-      <View
-        style={{
-          position: 'absolute',
-          top: -120,
-          right: -70,
-          width: 270,
-          height: 270,
-          borderRadius: 135,
-          backgroundColor: theme.colors.primary,
-          opacity: theme.isDark ? 0.18 : 0.14,
-        }}
+      <AnimatedBubble
+        color={theme.colors.primary}
+        opacity={theme.isDark ? 0.22 : 0.17}
+        size={300}
+        top={-108}
+        left={-92}
+        xRange={[0, 18, -8]}
+        yRange={[0, 14, -18]}
+        scaleRange={[0.92, 1.08, 0.98]}
+        duration={12200}
+      />
+      <AnimatedBubble
+        color={theme.colors.secondary}
+        opacity={theme.isDark ? 0.18 : 0.14}
+        size={320}
+        right={-96}
+        bottom={42}
+        xRange={[0, -22, 10]}
+        yRange={[0, -16, 20]}
+        scaleRange={[0.94, 1.12, 0.99]}
+        duration={13800}
       />
       <View
         style={{
           position: 'absolute',
-          left: -90,
-          bottom: 104,
-          width: 250,
-          height: 250,
-          borderRadius: 125,
-          backgroundColor: theme.colors.secondary,
-          opacity: theme.isDark ? 0.12 : 0.1,
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          right: 36,
-          bottom: -70,
-          width: 180,
-          height: 180,
-          borderRadius: 90,
+          right: 30,
+          bottom: -56,
+          width: 150,
+          height: 150,
+          borderRadius: 75,
           backgroundColor: theme.colors.backgroundOffset,
-          opacity: theme.isDark ? 0.42 : 0.6,
+          opacity: theme.isDark ? 0.34 : 0.46,
         }}
       />
     </View>

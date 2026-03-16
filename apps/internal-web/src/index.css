@@ -179,6 +179,18 @@
       var(--shadow-md);
   }
 
+  .glass-toolbar {
+    background: color-mix(in srgb, var(--glass-bg-heavy) 64%, transparent);
+    border: 1px solid color-mix(in srgb, var(--glass-border) 28%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 46%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--glass-border) 10%, transparent),
+      0 18px 42px rgba(0, 0, 0, 0.16),
+      0 0 28px color-mix(in srgb, var(--color-secondary-dim) 44%, transparent);
+    backdrop-filter: blur(calc(var(--glass-blur-heavy) * 1.02)) saturate(178%);
+    -webkit-backdrop-filter: blur(calc(var(--glass-blur-heavy) * 1.02)) saturate(178%);
+  }
+
   .surface-hover {
     transition:
       transform var(--transition-slow),

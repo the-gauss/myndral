@@ -40,13 +40,41 @@
 }
 
 @keyframes ambient-float-primary {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(2.5rem, -1.25rem, 0) scale(1.05); }
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.94) rotate(-7deg);
+    border-radius: 42% 58% 50% 50% / 48% 44% 56% 52%;
+  }
+  35% {
+    transform: translate3d(2.5rem, 1rem, 0) scale(1.06) rotate(2deg);
+    border-radius: 50% 50% 58% 42% / 46% 58% 42% 54%;
+  }
+  70% {
+    transform: translate3d(0.5rem, -2rem, 0) scale(1.12) rotate(8deg);
+    border-radius: 56% 44% 46% 54% / 52% 40% 60% 48%;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.94) rotate(-7deg);
+    border-radius: 42% 58% 50% 50% / 48% 44% 56% 52%;
+  }
 }
 
 @keyframes ambient-float-secondary {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(-2rem, 1.5rem, 0) scale(1.08); }
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.96) rotate(6deg);
+    border-radius: 54% 46% 44% 56% / 50% 42% 58% 50%;
+  }
+  32% {
+    transform: translate3d(-2rem, -1rem, 0) scale(1.08) rotate(-1deg);
+    border-radius: 46% 54% 58% 42% / 60% 44% 56% 40%;
+  }
+  68% {
+    transform: translate3d(1rem, 2rem, 0) scale(1.14) rotate(-8deg);
+    border-radius: 58% 42% 48% 52% / 46% 56% 44% 54%;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.96) rotate(6deg);
+    border-radius: 54% 46% 44% 56% / 50% 42% 58% 50%;
+  }
 }
 
 @keyframes surface-enter {
@@ -109,34 +137,37 @@
     inset: auto;
     pointer-events: none;
     z-index: 0;
-    border-radius: 9999px;
-    filter: blur(36px);
-    opacity: 0.85;
+    filter: blur(30px) saturate(120%);
+    opacity: 0.98;
   }
 
   body::before {
-    top: 4rem;
-    right: -5rem;
-    width: 20rem;
-    height: 20rem;
-    background: var(--gradient-orb-primary);
+    top: -4rem;
+    left: -3rem;
+    width: 26rem;
+    height: 26rem;
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.3), transparent 26%),
+      radial-gradient(circle, rgb(var(--color-primary-rgb) / 0.36) 0%, transparent 70%);
   }
 
   body::after {
-    left: -4rem;
-    bottom: 4rem;
-    width: 22rem;
-    height: 22rem;
-    background: var(--gradient-orb-secondary);
+    right: -4rem;
+    bottom: -5rem;
+    width: 30rem;
+    height: 30rem;
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.22), transparent 24%),
+      radial-gradient(circle, rgb(var(--color-secondary-rgb) / 0.34) 0%, transparent 72%);
   }
 
   @media (prefers-reduced-motion: no-preference) {
     body::before {
-      animation: ambient-float-primary 26s ease-in-out infinite;
+      animation: ambient-float-primary 24s ease-in-out infinite;
     }
 
     body::after {
-      animation: ambient-float-secondary 32s ease-in-out infinite;
+      animation: ambient-float-secondary 28s ease-in-out infinite;
     }
   }
 
@@ -217,6 +248,31 @@
       inset 0 1px 0 var(--glass-highlight),
       0 0 0 3px color-mix(in srgb, var(--color-primary-dim) 85%, transparent),
       var(--shadow-md);
+  }
+
+  .glass-panel-vibrant {
+    background: color-mix(in srgb, var(--glass-bg) 74%, transparent);
+    border: 1px solid color-mix(in srgb, var(--glass-border) 34%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 42%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--glass-border) 12%, transparent),
+      0 24px 56px rgba(0, 0, 0, 0.14),
+      0 0 36px color-mix(in srgb, var(--color-primary-dim) 74%, transparent),
+      0 0 44px color-mix(in srgb, var(--color-secondary-dim) 66%, transparent);
+    backdrop-filter: blur(calc(var(--glass-blur-heavy) * 0.95)) saturate(178%);
+    -webkit-backdrop-filter: blur(calc(var(--glass-blur-heavy) * 0.95)) saturate(178%);
+  }
+
+  .glass-toolbar {
+    background: color-mix(in srgb, var(--glass-bg-heavy) 66%, transparent);
+    border: 1px solid color-mix(in srgb, var(--glass-border) 28%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 50%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--glass-border) 10%, transparent),
+      0 18px 40px rgba(0, 0, 0, 0.11),
+      0 0 28px color-mix(in srgb, var(--color-secondary-dim) 54%, transparent);
+    backdrop-filter: blur(calc(var(--glass-blur-heavy) * 1.02)) saturate(185%);
+    -webkit-backdrop-filter: blur(calc(var(--glass-blur-heavy) * 1.02)) saturate(185%);
   }
 
   .surface-hover {

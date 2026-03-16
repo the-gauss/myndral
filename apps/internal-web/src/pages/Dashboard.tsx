@@ -61,7 +61,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-foreground">
 
       {/* ── Top nav ─────────────────────────────────────────────────────── */}
-      <header className="glass-panel-strong sticky top-0 z-40 mx-3 mt-3 rounded-[30px]">
+      <header className="glass-toolbar sticky top-0 z-40 mx-3 mt-3 rounded-[30px]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <span className="text-sm font-semibold tracking-tight">MyndralAI Studio</span>
 

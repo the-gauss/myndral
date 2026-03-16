@@ -18,7 +18,7 @@ export default function Sidebar() {
   return (
     <aside className="flex w-64 shrink-0 flex-col gap-3">
       {/* Browse nav */}
-      <nav className="glass-panel soft-enter rounded-[28px] px-3 py-4">
+      <nav className="glass-panel-vibrant soft-enter rounded-[28px] px-3 py-4">
         <p className="px-3 pb-2 text-xs font-semibold tracking-wide uppercase text-muted-fg">Browse</p>
         <ul className="space-y-0.5">
           {navItems.map(({ to, label, Icon }) => (
@@ -42,7 +42,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Library */}
-      <div className="glass-panel soft-enter flex flex-1 flex-col overflow-hidden rounded-[28px]">
+      <div className="glass-panel-vibrant soft-enter flex flex-1 flex-col overflow-hidden rounded-[28px]">
         <div className="px-4 pt-4 pb-2 flex items-center gap-2">
           <Library size={20} className="text-muted-fg" />
           <Link

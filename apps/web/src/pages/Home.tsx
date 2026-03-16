@@ -28,7 +28,7 @@ export default function Home() {
       {/* New Releases — section only renders when loading or has content */}
       {(albums.isLoading || (albums.data && albums.data.items.length > 0)) && (
         <section>
-          <SectionHeader title="New Releases" href="/albums" />
+          <SectionHeader title="New Releases" href="/new?section=albums" />
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
             {albums.isLoading
               ? Array.from({ length: 6 }).map((_, i) => <AlbumCardSkeleton key={i} />)
@@ -42,7 +42,7 @@ export default function Home() {
       {/* Artists */}
       {(artists.isLoading || (artists.data && artists.data.items.length > 0)) && (
         <section>
-          <SectionHeader title="Artists" href="/artists" />
+          <SectionHeader title="Artists" href="/new?section=artists" />
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2">
             {artists.isLoading
               ? Array.from({ length: 8 }).map((_, i) => <ArtistCardSkeleton key={i} />)
@@ -56,7 +56,7 @@ export default function Home() {
       {/* Trending Tracks */}
       {(featured.isLoading || (featured.data && featured.data.items.length > 0)) && (
         <section>
-          <SectionHeader title="Trending" href="/songs" />
+          <SectionHeader title="Trending" href="/new?section=songs" />
           {featured.isLoading
             ? Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4 px-3 py-2">

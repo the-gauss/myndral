@@ -63,7 +63,7 @@ export default function Dashboard() {
   const tabs = (Object.keys(TAB_LABELS) as Tab[]).filter((candidate) => candidate !== 'users' || isAdmin)
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
 
       {/* ── Top nav ─────────────────────────────────────────────────────── */}
       <header className="glass-toolbar sticky top-0 z-40 mx-3 mt-3 rounded-[30px]">
@@ -113,7 +113,7 @@ export default function Dashboard() {
       </header>
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
-      <main className="studio-shell soft-enter mx-auto max-w-7xl px-4 pb-8 pt-6">
+      <main className="studio-shell soft-enter mx-auto w-full max-w-7xl flex-1 overflow-y-auto px-4 pb-8 pt-6">
         {tab === 'artists'      && <CreateArtistPanel />}
         {tab === 'albums'       && <CreateAlbumPanel />}
         {tab === 'create_music' && <CreateMusicPanel />}

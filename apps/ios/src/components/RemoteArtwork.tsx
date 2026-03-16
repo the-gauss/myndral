@@ -19,9 +19,10 @@ export function RemoteArtwork({
   imageStyle,
   placeholderSymbol = 'music.note',
 }: RemoteArtworkProps) {
-  const { theme } = useTheme();
+  const { theme, themeName } = useTheme();
   const borderRadius = shape === 'circle' ? 999 : 22;
   const resolvedUri = resolveMediaUrl(uri);
+  const isPaper = themeName === 'paper';
 
   return (
     <View
@@ -37,12 +38,41 @@ export function RemoteArtwork({
       ]}
     >
       {resolvedUri ? (
-        <Image
-          source={{ uri: resolvedUri }}
-          contentFit="cover"
-          transition={180}
-          style={[{ width: '100%', height: '100%' }, imageStyle]}
-        />
+        <>
+          <Image
+            source={{ uri: resolvedUri }}
+            contentFit="cover"
+            transition={180}
+            style={[
+              {
+                width: '100%',
+                height: '100%',
+                opacity: isPaper ? 0.72 : 1,
+              },
+              imageStyle,
+            ]}
+          />
+          {isPaper ? (
+            <>
+              <View
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: theme.colors.fillSoft,
+                  opacity: 0.28,
+                }}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: theme.colors.backgroundOffset,
+                  opacity: 0.18,
+                }}
+              />
+            </>
+          ) : null}
+        </>
       ) : (
         <SymbolView
           name={placeholderSymbol}

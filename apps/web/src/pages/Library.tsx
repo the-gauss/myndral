@@ -1,8 +1,7 @@
 import { Disc3, ListMusic, Mic2, Music, Plus } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, type ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import TrackRow from '../components/cards/TrackRow'
-import PlaylistModal from '../components/ui/PlaylistModal'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
 import {
@@ -18,6 +17,7 @@ import {
 import { resolveMediaUrl } from '../lib/media'
 
 type LibraryView = 'saved' | 'favorites'
+type SavedSection = 'all' | 'recent' | 'artists' | 'albums' | 'songs'
 
 interface SectionItemProps {
   to: string
@@ -73,8 +73,9 @@ function SectionShell({
 }
 
 export default function Library() {
-  const [view, setView] = useState<LibraryView>('saved')
-  const [playlistModalOpen, setPlaylistModalOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const view = (searchParams.get('view') as LibraryView | null) ?? 'saved'
+  const savedSection = (searchParams.get('section') as SavedSection | null) ?? 'all'
   const libraryTracks = useLibraryTracks()
   const libraryAlbums = useLibraryAlbums()
   const libraryArtists = useLibraryArtists()
@@ -98,10 +99,53 @@ export default function Library() {
     [collection.data?.library.trackIds, savedTrackIds],
   )
 
+  const recentItems = useMemo(() => {
+    const items = [
+      ...(libraryTracks.data?.items.slice(0, 2).map((track) => ({
+        to: `/album/${track.albumId}`,
+        title: track.title,
+        subtitle: `Song · ${track.artist.name}`,
+        imageUrl: track.album.coverUrl,
+        Icon: Music,
+      })) ?? []),
+      ...(libraryAlbums.data?.items.slice(0, 2).map((album) => ({
+        to: `/album/${album.id}`,
+        title: album.title,
+        subtitle: `Album · ${album.artist.name}`,
+        imageUrl: album.coverUrl,
+        Icon: Disc3,
+      })) ?? []),
+      ...(libraryArtists.data?.items.slice(0, 2).map((artist) => ({
+        to: `/artist/${artist.id}`,
+        title: artist.name,
+        subtitle: 'Artist',
+        imageUrl: artist.imageUrl,
+        Icon: Mic2,
+      })) ?? []),
+      ...(libraryPlaylists.data?.items.slice(0, 2).map((playlist) => ({
+        to: `/playlist/${playlist.id}`,
+        title: playlist.name,
+        subtitle: `Playlist · ${playlist.trackCount ?? playlist.tracks.length} songs`,
+        imageUrl: playlist.coverUrl,
+        Icon: ListMusic,
+      })) ?? []),
+    ]
+    return items.slice(0, 8)
+  }, [libraryAlbums.data?.items, libraryArtists.data?.items, libraryPlaylists.data?.items, libraryTracks.data?.items])
+
   const savedLoading =
     libraryTracks.isLoading || libraryAlbums.isLoading || libraryArtists.isLoading || libraryPlaylists.isLoading
   const favoritesLoading =
     favoriteTracks.isLoading || favoriteAlbums.isLoading || favoriteArtists.isLoading
+
+  function setView(next: LibraryView) {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('view', next)
+    if (next === 'favorites') {
+      nextParams.delete('section')
+    }
+    setSearchParams(nextParams)
+  }
 
   return (
     <div className="space-y-6">
@@ -109,7 +153,7 @@ export default function Library() {
         <div>
           <h1 className="text-3xl font-black text-foreground">Your Library</h1>
           <p className="mt-2 text-sm text-muted-fg">
-            Save artists, albums, songs, and playlists for return listening, and keep favorites in a dedicated lane.
+            Saved listening, favorites, and playlist creation all live here.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -128,13 +172,13 @@ export default function Library() {
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setPlaylistModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-fg"
+          <Link
+            to="/playlists"
+            className="glass-pill inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-muted-fg hover:text-foreground"
           >
             <Plus size={15} />
-            New playlist
-          </button>
+            Manage playlists
+          </Link>
         </div>
       </div>
 
@@ -159,75 +203,102 @@ export default function Library() {
             ))}
           </div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-2">
-            <SectionShell title="Artists" count={libraryArtists.data?.items.length ?? 0}>
-              {libraryArtists.data?.items.length ? (
-                libraryArtists.data.items.map((artist) => (
-                  <SectionItem
-                    key={artist.id}
-                    to={`/artist/${artist.id}`}
-                    title={artist.name}
-                    subtitle="Saved artist"
-                    imageUrl={artist.imageUrl}
-                    Icon={Mic2}
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-muted-fg">No saved artists yet.</p>
-              )}
-            </SectionShell>
+          <div className="space-y-4">
+            {(savedSection === 'all' || savedSection === 'recent') && (
+              <SectionShell title="Recently Added" count={recentItems.length}>
+                {recentItems.length ? (
+                  recentItems.map((item) => (
+                    <SectionItem
+                      key={`${item.to}-${item.title}`}
+                      to={item.to}
+                      title={item.title}
+                      subtitle={item.subtitle}
+                      imageUrl={item.imageUrl}
+                      Icon={item.Icon}
+                    />
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-fg">Nothing has been added yet.</p>
+                )}
+              </SectionShell>
+            )}
 
-            <SectionShell title="Albums" count={libraryAlbums.data?.items.length ?? 0}>
-              {libraryAlbums.data?.items.length ? (
-                libraryAlbums.data.items.map((album) => (
-                  <SectionItem
-                    key={album.id}
-                    to={`/album/${album.id}`}
-                    title={album.title}
-                    subtitle={`${album.artist.name} · ${album.trackCount} tracks`}
-                    imageUrl={album.coverUrl}
-                    Icon={Disc3}
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-muted-fg">No saved albums yet.</p>
-              )}
-            </SectionShell>
+            {(savedSection === 'all' || savedSection === 'artists') && (
+              <SectionShell title="Artists" count={libraryArtists.data?.items.length ?? 0}>
+                {libraryArtists.data?.items.length ? (
+                  libraryArtists.data.items.map((artist) => (
+                    <SectionItem
+                      key={artist.id}
+                      to={`/artist/${artist.id}`}
+                      title={artist.name}
+                      subtitle="Saved artist"
+                      imageUrl={artist.imageUrl}
+                      Icon={Mic2}
+                    />
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-fg">No saved artists yet.</p>
+                )}
+              </SectionShell>
+            )}
 
-            <SectionShell title="Playlists" count={libraryPlaylists.data?.items.length ?? 0}>
-              {libraryPlaylists.data?.items.length ? (
-                libraryPlaylists.data.items.map((playlist) => (
-                  <SectionItem
-                    key={playlist.id}
-                    to={`/playlist/${playlist.id}`}
-                    title={playlist.name}
-                    subtitle={`${playlist.trackCount ?? playlist.tracks.length} songs${playlist.isPublic ? ' · Public' : ' · Private'}`}
-                    imageUrl={playlist.coverUrl}
-                    Icon={ListMusic}
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-muted-fg">No saved playlists yet.</p>
-              )}
-            </SectionShell>
+            {(savedSection === 'all' || savedSection === 'albums') && (
+              <SectionShell title="Albums" count={libraryAlbums.data?.items.length ?? 0}>
+                {libraryAlbums.data?.items.length ? (
+                  libraryAlbums.data.items.map((album) => (
+                    <SectionItem
+                      key={album.id}
+                      to={`/album/${album.id}`}
+                      title={album.title}
+                      subtitle={`${album.artist.name} · ${album.trackCount} tracks`}
+                      imageUrl={album.coverUrl}
+                      Icon={Disc3}
+                    />
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-fg">No saved albums yet.</p>
+                )}
+              </SectionShell>
+            )}
 
-            <SectionShell title="Songs" count={libraryTracks.data?.items.length ?? 0}>
-              {libraryTracks.data?.items.length ? (
-                libraryTracks.data.items.map((track, index) => (
-                  <TrackRow
-                    key={track.id}
-                    track={track}
-                    index={index + 1}
-                    queue={libraryTracks.data?.items}
-                    showAlbum
-                    isFavorite={favoriteTrackIds.has(track.id)}
-                    isInLibrary={libraryTrackIds.has(track.id)}
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-muted-fg">No saved songs yet.</p>
-              )}
-            </SectionShell>
+            {(savedSection === 'all' || savedSection === 'songs') && (
+              <SectionShell title="Songs" count={libraryTracks.data?.items.length ?? 0}>
+                {libraryTracks.data?.items.length ? (
+                  libraryTracks.data.items.map((track, index) => (
+                    <TrackRow
+                      key={track.id}
+                      track={track}
+                      index={index + 1}
+                      queue={libraryTracks.data?.items}
+                      showAlbum
+                      isFavorite={favoriteTrackIds.has(track.id)}
+                      isInLibrary={libraryTrackIds.has(track.id)}
+                    />
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-fg">No saved songs yet.</p>
+                )}
+              </SectionShell>
+            )}
+
+            {savedSection === 'all' && (
+              <SectionShell title="Playlists" count={libraryPlaylists.data?.items.length ?? 0}>
+                {libraryPlaylists.data?.items.length ? (
+                  libraryPlaylists.data.items.map((playlist) => (
+                    <SectionItem
+                      key={playlist.id}
+                      to={`/playlist/${playlist.id}`}
+                      title={playlist.name}
+                      subtitle={`${playlist.trackCount ?? playlist.tracks.length} songs${playlist.isPublic ? ' · Public' : ' · Private'}`}
+                      imageUrl={playlist.coverUrl}
+                      Icon={ListMusic}
+                    />
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-fg">No saved playlists yet.</p>
+                )}
+              </SectionShell>
+            )}
           </div>
         )
       ) : favoritesLoading ? (
@@ -323,12 +394,6 @@ export default function Library() {
         !favoriteTracks.data?.items.length && (
           <EmptyState message="Your favorites are empty. Tap the heart on songs, artists, or albums to build this space." />
         )}
-
-      <PlaylistModal
-        open={playlistModalOpen}
-        onClose={() => setPlaylistModalOpen(false)}
-        heading="Create a new playlist"
-      />
     </div>
   )
 }

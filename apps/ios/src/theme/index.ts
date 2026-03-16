@@ -1,15 +1,9 @@
-import { Platform } from 'react-native';
 import {
   BRAND_THEMES,
   BRAND_THEME_ORDER,
   DEFAULT_THEME_NAME,
   type BrandThemeName,
 } from '@/src/generated/brandTokens';
-
-const serifFontFamily = Platform.select({
-  ios: 'Times New Roman',
-  default: 'serif',
-});
 
 export type AppThemeName = BrandThemeName;
 export const DEFAULT_THEME = DEFAULT_THEME_NAME;
@@ -62,14 +56,13 @@ export interface AppTheme {
 export function getTheme(themeName: AppThemeName): AppTheme {
   const theme = BRAND_THEMES[themeName];
   const tokens = theme.tokens;
-  const usesSerifBody = themeName === 'paper';
 
   return {
     name: themeName,
     label: theme.label,
     description: theme.description,
     isDark: themeName === 'dark',
-    usesSerifBody,
+    usesSerifBody: false,
     colors: {
       background: tokens['color-bg'],
       backgroundOffset: tokens['color-bg-offset'],
@@ -97,9 +90,6 @@ export function getTheme(themeName: AppThemeName): AppTheme {
       sidebarActive: tokens['color-sidebar-item-active'],
       sidebarActiveText: tokens['color-sidebar-item-active-text'],
     },
-    typography: {
-      bodyFontFamily: usesSerifBody ? serifFontFamily : undefined,
-      displayFontFamily: usesSerifBody ? serifFontFamily : undefined,
-    },
+    typography: {},
   };
 }

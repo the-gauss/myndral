@@ -1486,6 +1486,24 @@ _ALLOWED_AUDIO_EXTENSIONS: frozenset[str] = frozenset(
     ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac"]
 )
 
+# Maps file-extension identifiers that are valid containers but whose name does
+# not appear as a value in the audio_format DB enum.  The enum stores codec
+# identity, not container name, so we normalise here before any DB write.
+#
+#   audio_format enum values: 'mp3', 'aac', 'ogg', 'flac', 'opus'
+#
+#   m4a — AAC audio in an MPEG-4 container.  The codec IS aac; only the
+#          container name differs.  Safe to store as 'aac'.
+#
+# NOTE: 'wav' is also accepted by the upload handler but is not in the enum.
+# WAV (uncompressed PCM) has no equivalent codec already in the enum, so it
+# cannot be safely aliased here.  A future migration should run:
+#   ALTER TYPE audio_format ADD VALUE 'wav';
+# Until then, wav uploads will fail at the DB write with a clear enum error.
+_EXT_TO_DB_FORMAT: dict[str, str] = {
+    "m4a": "aac",
+}
+
 _IMAGE_MIME_TO_EXT: dict[str, str] = {
     "image/jpeg": "jpg",
     "image/jpg": "jpg",
@@ -1576,6 +1594,11 @@ async def upload_custom_music(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Unsupported file type '{content_type}'. Upload an audio file (mp3, wav, flac, ogg, m4a, aac, opus).",
         )
+
+    # Resolve the DB enum value separately from the file extension.
+    # Some containers (e.g. m4a) are valid audio but their name is not a member
+    # of the audio_format enum — see _EXT_TO_DB_FORMAT for the mapping.
+    db_format = _EXT_TO_DB_FORMAT.get(ext, ext)
 
     # ── Persist audio file ────────────────────────────────────────────────────
     # Always write to disk first: mutagen needs a seekable file to infer
@@ -1735,7 +1758,7 @@ VALUES (
             ),
             {
                 "track_id": track_id,
-                "format": ext,
+                "format": db_format,   # enum-safe codec name (m4a normalised to aac, etc.)
                 "storage_url": storage_url,
                 "bitrate_kbps": None,
                 "sample_rate_hz": sample_rate_hz,
@@ -1856,6 +1879,9 @@ async def link_external_audio(
                    f"Supported: {', '.join(sorted(_ALLOWED_AUDIO_EXTENSIONS))}.",
         )
 
+    # Normalise container extension to enum-safe codec name (same logic as upload).
+    db_format = _EXT_TO_DB_FORMAT.get(ext, ext)
+
     # ── Attempt local metadata inference (no-op for remote URLs) ────────────
     meta = infer_local_audio_metadata(payload.storage_url) or {}
     duration_ms = int(meta.get("duration_ms") or 0)
@@ -1969,7 +1995,7 @@ VALUES (
             ),
             {
                 "track_id": track_id,
-                "format": ext,
+                "format": db_format,   # enum-safe codec name (m4a normalised to aac, etc.)
                 "storage_url": payload.storage_url,
                 "sample_rate_hz": sample_rate_hz,
                 "channels": channels,

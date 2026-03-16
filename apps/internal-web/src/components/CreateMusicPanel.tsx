@@ -517,7 +517,7 @@ export default function CreateMusicPanel() {
               type="button"
               onClick={handleEdit}
               disabled={activeMutation.isPending}
-              className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface disabled:opacity-60"
+              className="studio-outline-button rounded-md px-4 py-2 text-sm disabled:opacity-60"
             >
               Edit
             </button>
@@ -529,7 +529,7 @@ export default function CreateMusicPanel() {
       {!pendingAction && (
         <form
           onSubmit={handlePreview}
-          className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface/40 p-5 lg:grid-cols-3"
+          className="studio-card grid grid-cols-1 gap-4 rounded-[26px] p-5 lg:grid-cols-3"
         >
           <h3 className="text-base font-semibold lg:col-span-3">New song</h3>
 
@@ -591,7 +591,7 @@ export default function CreateMusicPanel() {
                 key={tab}
                 type="button"
                 className={`rounded-md px-3 py-2 text-sm capitalize
-                  ${activeTab === tab ? 'bg-accent text-accent-fg' : 'border border-border hover:bg-surface'}
+                  ${activeTab === tab ? 'bg-accent text-accent-fg' : 'studio-outline-button'}
                   ${tab === 'lyrics' && forceInstrumental ? 'opacity-40 cursor-not-allowed' : ''}`}
                 onClick={() => tab === 'lyrics' && forceInstrumental ? null : setActiveTab(tab)}
                 disabled={!controlsEnabled}
@@ -719,7 +719,7 @@ export default function CreateMusicPanel() {
               )}
 
               {!forceInstrumental && !useCustomLyrics && (
-                <p className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-sm text-muted-fg lg:col-span-3">
+                <p className="studio-readonly rounded-2xl px-3 py-2 text-sm text-muted-fg lg:col-span-3">
                   Leave this off to let ElevenLabs improvise vocals from your song prompt.
                 </p>
               )}
@@ -735,7 +735,7 @@ export default function CreateMusicPanel() {
                   <button
                     key={mode}
                     type="button"
-                    className={`rounded-md px-3 py-1.5 text-sm ${uploadMode === mode ? 'bg-accent text-accent-fg' : 'border border-border hover:bg-surface'}`}
+                    className={`rounded-md px-3 py-1.5 text-sm ${uploadMode === mode ? 'bg-accent text-accent-fg' : 'studio-outline-button'}`}
                     onClick={() => setUploadMode(mode)}
                     disabled={!controlsEnabled}
                   >
@@ -816,8 +816,8 @@ export default function CreateMusicPanel() {
       )}
 
       {/* ── Generation job history ───────────────────────────────────────── */}
-      <div className="rounded-lg border border-border">
-        <div className="border-b border-border bg-surface/70 px-4 py-3 text-sm text-muted-fg">
+      <div className="studio-table-card rounded-[24px]">
+        <div className="studio-divider studio-table-head border-b px-4 py-3 text-sm text-muted-fg">
           Recent generated files ({jobs.data?.total ?? 0})
         </div>
 
@@ -828,7 +828,7 @@ export default function CreateMusicPanel() {
         {!jobs.isLoading && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-surface/40">
+              <thead className="studio-table-head">
                 <tr>
                   <th className="px-3 py-2 text-left">Status</th>
                   <th className="px-3 py-2 text-left">Song</th>
@@ -841,7 +841,7 @@ export default function CreateMusicPanel() {
               </thead>
               <tbody>
                 {(jobs.data?.items ?? []).map((job) => (
-                  <tr key={job.id} className="border-t border-border/60 align-top">
+                  <tr key={job.id} className="studio-table-row border-t align-top">
                     <td className="px-3 py-2">{job.status}</td>
                     <td className="max-w-md px-3 py-2">
                       <p className="font-medium">{getSongTitle(job) || job.prompt || '-'}</p>
@@ -859,7 +859,7 @@ export default function CreateMusicPanel() {
                     <td className="px-3 py-2">
                       {job.outputStorageUrl ? (
                         <button
-                          className="rounded-md border border-border px-2 py-1 text-xs hover:bg-surface disabled:opacity-60"
+                          className="studio-outline-button rounded-md px-2 py-1 text-xs disabled:opacity-60"
                           disabled={previewMutation.isPending}
                           onClick={() => previewMutation.mutate(job)}
                         >
@@ -875,20 +875,20 @@ export default function CreateMusicPanel() {
         )}
 
         {previewError && (
-          <div className="border-t border-border bg-surface/30 px-4 py-3">
+          <div className="studio-divider border-t px-4 py-3">
             <p className="text-sm text-red-300">{previewError}</p>
           </div>
         )}
 
         {previewUrl && (
-          <div className="space-y-3 border-t border-border bg-surface/30 px-4 py-3">
+          <div className="studio-divider space-y-3 border-t px-4 py-3">
             <div>
               <p className="text-xs text-muted-fg">Previewing job {previewJobId}</p>
               {previewTitle && <p className="mt-1 text-sm font-medium">{previewTitle}</p>}
             </div>
             <audio controls src={previewUrl} className="w-full" />
             {previewLyrics && (
-              <div className="rounded-md border border-border/70 bg-background/60 p-3">
+              <div className="studio-readonly rounded-2xl p-3">
                 <p className="mb-2 text-xs uppercase tracking-wide text-muted-fg">Lyrics</p>
                 <pre className="whitespace-pre-wrap text-sm text-foreground">{previewLyrics}</pre>
               </div>
@@ -900,7 +900,7 @@ export default function CreateMusicPanel() {
       {/* ── Song catalog browse ──────────────────────────────────────────── */}
       <div className="space-y-3">
         <h3 className="text-base font-semibold">Song catalog</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 rounded-lg border border-border bg-surface/40">
+        <div className="studio-card rounded-[24px] grid grid-cols-1 gap-3 p-4 md:grid-cols-4">
           <label className="text-sm">
             Search
             <input
@@ -944,9 +944,9 @@ export default function CreateMusicPanel() {
         {tracksQuery.isLoading && <p className="text-sm text-muted-fg">Loading…</p>}
 
         {!tracksQuery.isLoading && (tracksQuery.data?.items ?? []).length > 0 && (
-          <div className="rounded-lg border border-border overflow-hidden">
+          <div className="studio-table-card rounded-[24px] overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-surface/70 text-left">
+              <thead className="studio-table-head text-left">
                 <tr>
                   <th className="px-3 py-2">Title</th>
                   <th className="px-3 py-2">Artist</th>
@@ -959,7 +959,7 @@ export default function CreateMusicPanel() {
               </thead>
               <tbody>
                 {(tracksQuery.data?.items ?? []).map((track: TrackItem) => (
-                  <tr key={track.id} className="border-t border-border/60">
+                  <tr key={track.id} className="studio-table-row border-t">
                     <td className="px-3 py-2">
                       <p className="font-medium">{track.title}</p>
                       {track.explicit && (
@@ -1003,7 +1003,7 @@ export default function CreateMusicPanel() {
       {/* ── Track revoke confirmation (admin-only) ───────────────────────────── */}
       {revokeTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-xl border border-red-500/30 bg-background shadow-2xl">
+          <div className="studio-modal-card w-full max-w-md rounded-[28px] ring-1 ring-inset ring-danger/20">
             <div className="p-5 space-y-4">
               <h2 className="text-base font-semibold text-red-300">Revoke published song</h2>
               <p className="text-sm text-foreground">
@@ -1038,7 +1038,7 @@ export default function CreateMusicPanel() {
                 <button
                   onClick={() => { setRevokeTarget(null); setRevokeNotes(''); revokeMutation.reset() }}
                   disabled={revokeMutation.isPending}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface disabled:opacity-60"
+                  className="studio-outline-button rounded-md px-4 py-2 text-sm disabled:opacity-60"
                 >
                   Cancel
                 </button>

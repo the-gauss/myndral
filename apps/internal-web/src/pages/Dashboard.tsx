@@ -61,7 +61,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-foreground">
 
       {/* ── Top nav ─────────────────────────────────────────────────────── */}
-      <header className="glass-panel sticky top-0 z-40 mx-3 mt-3 rounded-[28px] border border-border/70">
+      <header className="glass-panel-strong sticky top-0 z-40 mx-3 mt-3 rounded-[30px]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <span className="text-sm font-semibold tracking-tight">MyndralAI Studio</span>
 
@@ -108,7 +108,7 @@ export default function Dashboard() {
       </header>
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
-      <main className="soft-enter mx-auto max-w-7xl px-4 pb-8 pt-6">
+      <main className="studio-shell soft-enter mx-auto max-w-7xl px-4 pb-8 pt-6">
         {tab === 'artists'      && <CreateArtistPanel />}
         {tab === 'albums'       && <CreateAlbumPanel />}
         {tab === 'create_music' && <CreateMusicPanel />}

@@ -73,7 +73,7 @@ export default function NotificationsBell({
   return (
     <div className="relative" ref={panelRef}>
       <button
-        className="relative rounded-md p-1.5 hover:bg-surface"
+        className="glass-pill relative rounded-md p-1.5"
         onClick={() => setOpen((v) => !v)}
         aria-label="Notifications"
       >
@@ -100,8 +100,8 @@ export default function NotificationsBell({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-lg border border-border bg-surface shadow-xl">
-          <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <div className="glass-panel-strong absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-[24px]">
+          <div className="studio-divider flex items-center justify-between border-b px-3 py-2">
             <span className="text-sm font-medium">
               Notifications
               {unreadCount > 0 && (
@@ -131,7 +131,7 @@ export default function NotificationsBell({
             {items.map((notif) => (
               <button
                 key={notif.id}
-                className={`w-full border-b border-border/50 px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-background/60 ${!notif.isRead ? 'bg-accent/5' : ''}`}
+                className={`studio-divider w-full border-b px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-foreground/5 ${!notif.isRead ? 'bg-accent/5' : ''}`}
                 onClick={() => handleItemClick(notif)}
               >
                 <div className="flex items-start gap-2">

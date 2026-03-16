@@ -109,7 +109,7 @@ function ActionButtons({
     <div className="flex flex-wrap gap-1">
       {hasAudio && onPreview && (
         <button
-          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface disabled:opacity-60"
+          className="studio-outline-button rounded px-2 py-1 text-xs disabled:opacity-60"
           disabled={isPending}
           onClick={onPreview}
         >
@@ -322,7 +322,7 @@ export default function StagingPanel({
     <section className="space-y-6">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="rounded-lg border border-border bg-surface/40 p-4">
+      <div className="studio-card rounded-[24px] p-4">
         <h3 className="text-lg font-semibold">Staging</h3>
         <p className="mt-1 text-sm text-muted-fg">
           Content pending review before going live in the player.
@@ -335,20 +335,20 @@ export default function StagingPanel({
       {staging.isLoading && <p className="text-sm text-muted-fg">Loading staging queue…</p>}
 
       {!staging.isLoading && totalAll === 0 && (
-        <div className="rounded-lg border border-border bg-surface/20 px-4 py-8 text-center text-sm text-muted-fg">
+        <div className="studio-card-soft rounded-[24px] px-4 py-8 text-center text-sm text-muted-fg">
           Staging queue is empty.
         </div>
       )}
 
       {/* ── Artists section ──────────────────────────────────────────────── */}
       {artists.length > 0 && (
-        <div className="rounded-lg border border-border">
-          <div className="border-b border-border bg-surface/70 px-4 py-3 text-sm font-medium">
+        <div className="studio-table-card rounded-[24px]">
+          <div className="studio-divider studio-table-head border-b px-4 py-3 text-sm font-medium">
             Artists ({staging.data?.totalArtists ?? 0})
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-surface/40 text-left">
+              <thead className="studio-table-head text-left">
                 <tr>
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Creator</th>
@@ -364,7 +364,7 @@ export default function StagingPanel({
                     <tr
                       key={artist.id}
                       ref={highlighted ? highlightRef : null}
-                      className={`border-t border-border/60 align-top transition-colors ${highlighted ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : ''}`}
+                      className={`studio-table-row border-t align-top transition-colors ${highlighted ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : ''}`}
                     >
                       <td className="px-3 py-2">
                         <p className="font-medium">{artist.name}</p>
@@ -402,13 +402,13 @@ export default function StagingPanel({
 
       {/* ── Albums section ───────────────────────────────────────────────── */}
       {albums.length > 0 && (
-        <div className="rounded-lg border border-border">
-          <div className="border-b border-border bg-surface/70 px-4 py-3 text-sm font-medium">
+        <div className="studio-table-card rounded-[24px]">
+          <div className="studio-divider studio-table-head border-b px-4 py-3 text-sm font-medium">
             Albums ({staging.data?.totalAlbums ?? 0})
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-surface/40 text-left">
+              <thead className="studio-table-head text-left">
                 <tr>
                   <th className="px-3 py-2">Title</th>
                   <th className="px-3 py-2">Artist</th>
@@ -426,7 +426,7 @@ export default function StagingPanel({
                     <tr
                       key={album.id}
                       ref={highlighted ? highlightRef : null}
-                      className={`border-t border-border/60 align-top transition-colors ${highlighted ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : ''}`}
+                      className={`studio-table-row border-t align-top transition-colors ${highlighted ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : ''}`}
                     >
                       <td className="px-3 py-2">
                         <p className="font-medium">{album.title}</p>
@@ -466,13 +466,13 @@ export default function StagingPanel({
 
       {/* ── Tracks section ───────────────────────────────────────────────── */}
       {tracks.length > 0 && (
-        <div className="rounded-lg border border-border">
-          <div className="border-b border-border bg-surface/70 px-4 py-3 text-sm font-medium">
+        <div className="studio-table-card rounded-[24px]">
+          <div className="studio-divider studio-table-head border-b px-4 py-3 text-sm font-medium">
             Tracks ({staging.data?.totalTracks ?? 0})
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-surface/40 text-left">
+              <thead className="studio-table-head text-left">
                 <tr>
                   <th className="px-3 py-2">Track</th>
                   <th className="px-3 py-2">Artist / Album</th>
@@ -490,7 +490,7 @@ export default function StagingPanel({
                     <tr
                       key={track.id}
                       ref={highlighted ? highlightRef : null}
-                      className={`border-t border-border/60 align-top transition-colors ${highlighted ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : ''}`}
+                      className={`studio-table-row border-t align-top transition-colors ${highlighted ? 'bg-accent/10 ring-1 ring-inset ring-accent/40' : ''}`}
                     >
                       <td className="px-3 py-2">
                         <p className="font-medium">{track.title}</p>
@@ -531,7 +531,7 @@ export default function StagingPanel({
 
           {/* Inline audio preview player for tracks */}
           {preview && (
-            <div className="border-t border-border bg-surface/30 px-4 py-3">
+            <div className="studio-divider border-t px-4 py-3">
               <p className="text-xs text-muted-fg">
                 Previewing: <span className="font-medium text-foreground">{preview.title}</span>
               </p>
@@ -544,7 +544,7 @@ export default function StagingPanel({
       {/* ── Notes modal (reject / revision) ─────────────────────────────── */}
       {notesModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-xl">
+          <div className="studio-modal-card w-full max-w-md rounded-[28px] p-5">
             <h4 className="text-base font-semibold capitalize">
               {notesModal.intent === 'reject' ? 'Reject' : 'Request revision'}
             </h4>
@@ -574,7 +574,7 @@ export default function StagingPanel({
 
             <div className="mt-4 flex justify-end gap-2">
               <button
-                className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface disabled:opacity-60"
+                className="studio-outline-button rounded-md px-3 py-1.5 text-sm disabled:opacity-60"
                 onClick={closeModal}
                 disabled={modalMutationPending}
               >

@@ -62,6 +62,32 @@ Each entry follows STAR format (Situation → Task → Action → Result).
 
 ---
 
+## 2026-03-22 — Native Android App: Platform-Idiomatic Replication of the iOS Client
+
+**Situation:** The Myndral product had a production web app, internal Studio web app, and an iOS client (Expo/React Native). Android users had no native client. The iOS app already ran on Android via Expo, but the codebase was optimised for iOS abstractions (`expo-glass-effect`, `expo-symbols`, iOS-specific font stacks) and did not deliver a first-class Android experience.
+
+**Task:** Build a fully native Android app under `apps/android` that replicates every feature and UI screen of the iOS app — listener mode, Creator Studio, full-screen player — while using idiomatic Android technology choices and not touching any other part of the monorepo.
+
+**Action:**
+
+1. **Chose Kotlin + Jetpack Compose instead of a shared Expo codebase** — an Expo-based approach would have reused code but produced sub-par Android UX. A native Compose app allows Material 3 components, Android-idiomatic navigation patterns, and proper integration with the Android media stack. The same API contract (identical Retrofit interface mirroring all iOS service functions) ensures feature parity without backend changes.
+
+2. **MVVM + Clean Architecture with Hilt DI** — every screen has a dedicated ViewModel with a `UiState` data class exposed as a `StateFlow`. Repositories sit between ViewModels and Retrofit/DataStore, so the networking layer is fully mockable. Hilt provides constructor injection throughout — no manual factory boilerplate. This mirrors the separation-of-concerns discipline in the iOS app (Zustand store + TanStack Query hooks + service modules).
+
+3. **Three-theme system ported from `shared/brand/tokens.css`** — all 30+ design tokens (hex values, alpha channels, border radii, shadow scales) were manually translated to Kotlin `Color` constants. A `MyndralColors` data class is injected via `CompositionLocal` so any Composable reads brand-accurate colours without redundant parameter threading. The Paper premium theme enforces the same upgrade gate as iOS. This ensures the same visual identity across Android, iOS, and the web.
+
+4. **Android-native glass effect using `RenderEffect`** — `expo-glass-effect` is iOS-only. On Android 12+ (API 31+, the app's `minSdk`) the `GlassSurface` composable applies `android.graphics.RenderEffect.createBlurEffect(18f, 18f, CLAMP)` via `Modifier.graphicsLayer { renderEffect = ... }`. This is the closest native equivalent to `backdrop-filter: blur(18px)` and avoids any third-party blur library.
+
+5. **Media3 ExoPlayer foreground service for background audio** — a `MediaSessionService` subclass (`MyndralPlayerService`) keeps ExoPlayer alive when backgrounded, satisfying Android's background execution restrictions while surfacing lock-screen / notification playback controls. `PlayerViewModel` holds a `MediaController` connection and exposes `StateFlow<PlayerState>` for progress, shuffle, and repeat. This parallels the iOS `PlayerProvider` context that wraps the entire React tree.
+
+6. **Encrypted token storage via `EncryptedSharedPreferences`** — mirrors iOS's `expo-secure-store` (Android Keystore-backed). The JWT is never written to plain SharedPreferences. Theme preference uses Jetpack DataStore (typed preferences) — async, coroutine-native, and crash-safe unlike the sync `SharedPreferences` API.
+
+7. **Navigation Compose with a shared `PlayerViewModel` at activity scope** — `NavHost` routes mirror the Expo Router file structure (auth, tabs, detail, studio). The `PlayerViewModel` is owned by `MainActivity` (`by viewModels()`) so the MiniPlayer and full PlayerScreen always share the same instance, avoiding the dual-ViewModel state-sync problem that arises when scoping to individual destinations.
+
+**Result:** A fully featured native Android app in `apps/android` that matches every iOS screen (Login, Register, ChoosePlan, Home, Search, Library, Account, AlbumDetail, ArtistDetail, PlaylistDetail, Player, StudioAccess, StudioArtists, StudioAlbums, StudioSongs, StudioStaging), uses brand-accurate theming from the same shared tokens, plays audio in the background via a foreground service, and follows production-grade Android conventions throughout. No other app in the monorepo was modified.
+
+---
+
 ## 2026-03-16 — iOS Creator Studio: Dual-App Navigation Pattern Within a Single Binary
 
 **Situation:** The product had a fully functional web-based Creator Studio for content editors and reviewers, but iOS users had no access to it. The Studio is a fundamentally different UX from the listener music app — different navigation, different data, different privilege model — so simply adding more screens to the existing tab bar would have produced an incoherent product.
